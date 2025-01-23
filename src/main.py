@@ -74,6 +74,7 @@ async def main() -> None:
                 data = await asyncio.to_thread(scraper.scrape, url)
 
                 print(data)
+                document_path = scraper.download_document(url)
                 # Store the extracted data to the default dataset.
                 await Actor.push_data(data)
             except Exception:

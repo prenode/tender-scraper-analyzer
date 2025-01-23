@@ -1,6 +1,8 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import json
+import tempfile
+import requests
 
 
 def _element_with_text_exists(driver, xpath):
@@ -183,3 +185,17 @@ class ITAusschreibungScraper(BaseScraper):
         cookies = self.driver.get_cookies()
         with open('cookies.json', 'w') as f:
             json.dump(cookies, f)
+
+    def download_document(self, url):
+        cookies = self.driver.get_cookies()
+
+        response = requests.get(url=url, cookies=cookies, allow_redirects=True, stream=True)
+        filepath = tempfile.NamedTemporaryFile().name
+
+        with open(filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
+
+        return filepath
