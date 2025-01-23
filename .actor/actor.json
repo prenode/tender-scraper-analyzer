@@ -1,0 +1,13 @@
+{
+	"actorSpecification": 1,
+	"name": "tender-login-actor",
+	"title": "Getting started with Python and Selenium",
+	"description": "Scrapes titles of websites using Selenium.",
+	"version": "0.0",
+	"buildTag": "latest",
+	"meta": {
+		"templateId": "python-selenium"
+	},
+	"input": "./input_schema.json",
+	"dockerfile": "./Dockerfile"
+}
