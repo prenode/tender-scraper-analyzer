@@ -7,3 +7,4 @@ python-dotenv
 haystack-ai
 huggingface_hub
 pypdf
+nltk
