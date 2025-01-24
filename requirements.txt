@@ -4,3 +4,4 @@
 apify < 3.0
 selenium
 python-dotenv
+haystack-ai

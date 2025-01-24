@@ -25,8 +25,14 @@
             "description": "A secret, encrypted input field",
             "editor": "textfield",
             "isSecret": true
+        },
+        "hf_api_key":{
+            "title": "HF API Key",
+            "type": "string",
+            "description": "A secret, encrypted input field",
+            "editor": "textfield",
+            "isSecret": true
         }
-
     },
     "required": ["start_urls"]
 }

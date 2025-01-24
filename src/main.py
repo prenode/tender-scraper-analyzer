@@ -24,7 +24,6 @@ import requests
 # Follow the installation guide at: https://www.selenium.dev/documentation/webdriver/getting_started/install_drivers/
 # When running on the Apify platform, the Chromedriver is already included in the Actor's Docker image.
 
-hf_api_key = ""
 
 async def main() -> None:
     """Main entry point for the Apify Actor.
@@ -66,7 +65,7 @@ async def main() -> None:
         chrome_options.add_argument('--disable-dev-shm-usage')
         driver = webdriver.Chrome(options=chrome_options)
         scraper = ITAusschreibungScraper(driver, actor_input.get('email'), actor_input.get('password'))
-        summary_extractor = SummaryExtractor(hf_api_key)
+        summary_extractor = SummaryExtractor(actor_input.get('hf_api_key'))
     
         # Process the URLs from the request queue.  
         while request := await request_queue.fetch_next_request():
