@@ -80,7 +80,7 @@ async def main() -> None:
 
                 publication_link = data.get('properties').get('Unterlagen').get('links')[0].get('href')
                 print(publication_link)
-                publication_content = download_publication(publication_link, driver)
+                publication_content = scraper.download_publication(publication_link, driver)
                 #with open("publication.pdf", "rb") as f:
                 #    publication_content = f.read()
                 with open("publication.pdf", "wb") as f:
@@ -99,26 +99,4 @@ async def main() -> None:
                 # Mark the request as handled to ensure it is not processed again.
                 await request_queue.mark_request_as_handled(request)
         driver.quit()
-
-def download_publication(link: str, driver: webdriver.Chrome) -> bytes:
-    """
-    Downloads a publication from the given link using the provided Selenium WebDriver.
-    Args:
-        link (str): The URL of the publication to download.
-        driver (webdriver.Chrome): An instance of Selenium WebDriver for Chrome.
-    Returns:
-        bytes: The content of the downloaded publication in bytes.
-    Raises:
-        Exception: If the downloaded file is not a PDF.
-        requests.exceptions.HTTPError: If the HTTP request returned an unsuccessful status code.
-    """
-
-    cookies = driver.get_cookies()
-    cookies = {cookie["name"]:cookie["value"] for cookie in cookies if "www.it-ausschreibung.de" in cookie["domain"]}
-    response = requests.get(link, cookies=cookies)
-    response.raise_for_status()
-    if response.headers.get("Content-Type") != "application/pdf":
-        raise Exception(f"File is not a PDF ({response.headers.get('Content-Type')})")
-    return response.content
-
 

@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import json
-
+import requests
 
 def _element_with_text_exists(driver, xpath):
     try:
@@ -183,3 +183,65 @@ class ITAusschreibungScraper(BaseScraper):
         cookies = self.driver.get_cookies()
         with open('cookies.json', 'w') as f:
             json.dump(cookies, f)
+
+    def download_publication(self, link: str) -> bytes:
+        """
+        Downloads a publication from the given link using the provided Selenium WebDriver.
+        Args:
+            link (str): The URL of the publication to download.
+            driver (webdriver.Chrome): An instance of Selenium WebDriver for Chrome.
+        Returns:
+            bytes: The content of the downloaded publication in bytes.
+        Raises:
+            Exception: If the downloaded file is not a PDF.
+            requests.exceptions.HTTPError: If the HTTP request returned an unsuccessful status code.
+        """
+
+        cookies = self.driver.get_cookies()
+        cookies = {cookie["name"]:cookie["value"] for cookie in cookies if "www.it-ausschreibung.de" in cookie["domain"]}
+        response = requests.get(link, cookies=cookies)
+        response.raise_for_status()
+        if response.headers.get("Content-Type") != "application/pdf":
+            raise Exception(f"File is not a PDF ({response.headers.get('Content-Type')})")
+        return response.content
+
+
+
+
+class PDFScraper(BaseScraper):
+    def __init__(self, driver: webdriver.Chrome):
+        super().__init__(driver)
+
+    def _download_file(self, url, file_path):
+        """
+        Downloads a file from the given URL and saves it to the specified file path.
+        Args:
+            url (str): The URL of the file to download.
+            file_path (str): The path where the file should be saved.
+        """
+        self.driver.get(url)
+        with open(file_path, 'wb') as file:
+            file.write(self.driver.page_source.encode('utf-8'))
+
+    def _get_download_links(self):
+        """
+        Retrieves all downloadable file links from the current page.
+        Returns:
+            list: A list of URLs of downloadable files.
+        """
+        links = self.driver.find_elements(By.XPATH, "//a[contains(@href, '.pdf') or contains(@href, '.doc') or contains(@href, '.docx')]")
+        return [link.get_attribute('href') for link in links]
+
+    def scrape(self, url: str):
+        """
+        Scrapes the given URL for downloadable files and saves them.
+        Args:
+            url (str): The URL to scrape for downloadable files.
+        """
+        self.driver.get(url)
+        download_links = self._get_download_links()
+        for index, link in enumerate(download_links):
+            file_extension = link.split('.')[-1]
+            file_path = f"downloaded_file_{index + 1}.{file_extension}"
+            self._download_file(link, file_path)
+
