@@ -89,7 +89,7 @@ async def main() -> None:
 
                 summary = summary_extractor.create_summary(publication_content)
                 data['summary'] = summary
-                print(summary)
+                print(data)
 
                 # Store the extracted data to the default dataset.
                 await Actor.push_data(data)
@@ -101,6 +101,18 @@ async def main() -> None:
         driver.quit()
 
 def download_publication(link: str, driver: webdriver.Chrome) -> bytes:
+    """
+    Downloads a publication from the given link using the provided Selenium WebDriver.
+    Args:
+        link (str): The URL of the publication to download.
+        driver (webdriver.Chrome): An instance of Selenium WebDriver for Chrome.
+    Returns:
+        bytes: The content of the downloaded publication in bytes.
+    Raises:
+        Exception: If the downloaded file is not a PDF.
+        requests.exceptions.HTTPError: If the HTTP request returned an unsuccessful status code.
+    """
+
     cookies = driver.get_cookies()
     cookies = {cookie["name"]:cookie["value"] for cookie in cookies if "www.it-ausschreibung.de" in cookie["domain"]}
     response = requests.get(link, cookies=cookies)

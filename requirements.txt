@@ -8,3 +8,4 @@ haystack-ai
 huggingface_hub
 pypdf
 nltk
+sentence_transformers >= 3.0.0

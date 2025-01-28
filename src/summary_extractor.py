@@ -5,7 +5,6 @@ from haystack.components.retrievers.in_memory import (
     InMemoryBM25Retriever,
     InMemoryEmbeddingRetriever,
 )
-from haystack.components.generators import OpenAIGenerator
 from haystack.components.builders.prompt_builder import PromptBuilder
 from haystack.components.generators import HuggingFaceAPIGenerator
 from haystack.components.converters import PyPDFToDocument
@@ -22,9 +21,20 @@ from pathlib import Path
 from dotenv import load_dotenv
 import io
 
-
-
 class SummaryExtractor:
+    """
+    A class to extract summaries from PDF documents using a pipeline of components.
+    Attributes:
+        indexing_pipeline (Pipeline): The pipeline used for indexing documents.
+        query_pipeline (Pipeline): The pipeline used for querying and generating summaries.
+    Methods:
+        __init__(hf_api_key: str):
+            Initializes the SummaryExtractor with the provided Hugging Face API key.
+        _setup_pipelines(api_key: str) -> Tuple[Pipeline, Pipeline]:
+            Sets up the indexing and query pipelines using the provided API key.
+        create_summary(pdf_data: bytes) -> str:
+            Creates a summary from the provided PDF data.
+    """
     def __init__(self, hf_api_key: str):
         self.indexing_pipeline, self.query_pipeline = self._setup_pipelines(hf_api_key)
 
@@ -82,6 +92,15 @@ class SummaryExtractor:
         return indexing_pipeline, query_pipeline
 
     def create_summary(self, pdf_data: bytes) -> str:
+        """
+        Creates a summary of the given PDF data.
+        This method processes the provided PDF data using an indexing pipeline and
+        then generates a summary based on a predefined set of questions.
+        Args:
+            pdf_data (bytes): The PDF data to be summarized.
+        Returns:
+            str: The generated summary of the PDF data.
+        """
         results = self.indexing_pipeline.run(
             {"converter": {"sources": [ByteStream(data=pdf_data)]}},
         )
