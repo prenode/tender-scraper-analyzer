@@ -13,7 +13,9 @@ from haystack.components.preprocessors import DocumentSplitter
 from haystack.components.writers import DocumentWriter
 from haystack.components.embedders import (
     SentenceTransformersTextEmbedder,
-    SentenceTransformersDocumentEmbedder,
+    SentenceTransformersDocumentEmbedder, 
+    HuggingFaceAPITextEmbedder,
+    HuggingFaceAPIDocumentEmbedder,
 )
 from haystack.dataclasses.byte_stream import ByteStream
 
@@ -62,7 +64,9 @@ class SummaryExtractor:
             "splitter", DocumentSplitter(split_by="sentence", split_length=5)
         )
         indexing_pipeline.add_component(
-            "document_embedder", SentenceTransformersDocumentEmbedder()
+            "document_embedder", HuggingFaceAPIDocumentEmbedder(api_type="serverless_inference_api",
+                                              api_params={"model": "BAAI/bge-small-en-v1.5"},
+                                              token=Secret.from_token(api_key))
         )
         indexing_pipeline.add_component(
             "writer", DocumentWriter(document_store=document_store)
@@ -75,7 +79,9 @@ class SummaryExtractor:
 
         query_pipeline = Pipeline()
         query_pipeline.add_component(
-            "text_embedder", SentenceTransformersTextEmbedder()
+            "text_embedder", HuggingFaceAPITextEmbedder(api_type="serverless_inference_api",
+                                              api_params={"model": "BAAI/bge-small-en-v1.5"},
+                                              token=Secret.from_token(api_key))
         )
         query_pipeline.add_component(
             "retriever", InMemoryEmbeddingRetriever(document_store=document_store)

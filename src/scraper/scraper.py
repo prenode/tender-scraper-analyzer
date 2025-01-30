@@ -206,8 +206,6 @@ class ITAusschreibungScraper(BaseScraper):
         return response.content
 
 
-
-
 class PDFScraper(BaseScraper):
     def __init__(self, driver: webdriver.Chrome):
         super().__init__(driver)

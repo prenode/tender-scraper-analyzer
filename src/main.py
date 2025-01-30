@@ -80,7 +80,7 @@ async def main() -> None:
 
                 publication_link = data.get('properties').get('Unterlagen').get('links')[0].get('href')
                 print(publication_link)
-                publication_content = scraper.download_publication(publication_link, driver)
+                publication_content = scraper.download_publication(publication_link)
                 #with open("publication.pdf", "rb") as f:
                 #    publication_content = f.read()
                 with open("publication.pdf", "wb") as f:
