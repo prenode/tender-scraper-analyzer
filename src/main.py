@@ -16,7 +16,7 @@ import os
 from apify import Actor, Request
 
 from .summary_extractor import SummaryExtractor
-from .scraper.scraper import ITAusschreibungScraper
+from .scraper.scraper import ITAusschreibungScraper, PDFScraper
 from dotenv import load_dotenv
 import requests
 
@@ -32,7 +32,6 @@ async def main() -> None:
     Asynchronous execution is required for communication with Apify platform, and it also enhances performance in
     the field of web scraping significantly.
     """
-    load_dotenv()
     async with Actor:
         # Retrieve the Actor input, and use default values if not provided.
         actor_input = await Actor.get_input() or {}
@@ -60,7 +59,8 @@ async def main() -> None:
 
         if Actor.config.headless:
             chrome_options.add_argument('--headless')
-
+        prefs = {'download.default_directory' : '/Users/christopherroth/code/tender-login-actor/storage/files'}
+        chrome_options.add_experimental_option('prefs', prefs)
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         driver = webdriver.Chrome(options=chrome_options)
@@ -76,11 +76,15 @@ async def main() -> None:
             try:
                 # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
                 data = await asyncio.to_thread(scraper.scrape, url)
-                print(data)
 
                 publication_link = data.get('properties').get('Unterlagen').get('links')[0].get('href')
-                print(publication_link)
-                publication_content = scraper.download_publication(publication_link)
+                print(f"Publication Link: {publication_link}")
+                publication_content = scraper.download_publication(publication_link )
+                documents_link = data.get('properties').get('Einsicht und Anforderung der Verdingungsunterlagen').get('links')[0].get('href')
+                print(f"Document Link: {documents_link}")
+                
+                pdf_scraper = PDFScraper(driver=driver)
+                pdf_scraper.scrape(documents_link)
                 #with open("publication.pdf", "rb") as f:
                 #    publication_content = f.read()
                 with open("publication.pdf", "wb") as f:
@@ -89,7 +93,6 @@ async def main() -> None:
 
                 summary = summary_extractor.create_summary(publication_content)
                 data['summary'] = summary
-                print(data)
 
                 # Store the extracted data to the default dataset.
                 await Actor.push_data(data)

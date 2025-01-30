@@ -210,25 +210,30 @@ class PDFScraper(BaseScraper):
     def __init__(self, driver: webdriver.Chrome):
         super().__init__(driver)
 
-    def _download_file(self, url, file_path):
+    def _download_element(self, url):
         """
         Downloads a file from the given URL and saves it to the specified file path.
         Args:
             url (str): The URL of the file to download.
             file_path (str): The path where the file should be saved.
         """
-        self.driver.get(url)
-        with open(file_path, 'wb') as file:
-            file.write(self.driver.page_source.encode('utf-8'))
+        url.click()
+        # with open(file_path, 'wb') as file:
+        #     file.write(self.driver.page_source.encode('utf-8'))
 
-    def _get_download_links(self):
+    def _get_download_elements(self):
         """
         Retrieves all downloadable file links from the current page.
         Returns:
             list: A list of URLs of downloadable files.
         """
-        links = self.driver.find_elements(By.XPATH, "//a[contains(@href, '.pdf') or contains(@href, '.doc') or contains(@href, '.docx')]")
-        return [link.get_attribute('href') for link in links]
+        elements = self.driver.find_elements("xpath", '//*[contains(@title, "herunterladen")]')
+
+        # Print or interact with elements
+        for element in elements:
+            print(element.text)  # or element.get_attribute("href") if they are links
+
+        return elements
 
     def scrape(self, url: str):
         """
@@ -237,9 +242,9 @@ class PDFScraper(BaseScraper):
             url (str): The URL to scrape for downloadable files.
         """
         self.driver.get(url)
-        download_links = self._get_download_links()
-        for index, link in enumerate(download_links):
-            file_extension = link.split('.')[-1]
-            file_path = f"downloaded_file_{index + 1}.{file_extension}"
-            self._download_file(link, file_path)
+        download_links = self._get_download_elements()
 
+        for index, link in enumerate(download_links):
+            # file_extension = link.split('.')[-1]
+            # file_path = f"downloaded_file_{index + 1}.{file_extension}"
+            self._download_element(link)
