@@ -119,5 +119,34 @@ class SummaryExtractor:
             },
             include_outputs_from=["llm", "prompt_builder"], 
         )
-        print(results["prompt_builder"]["prompt"])
         return results["llm"]["replies"][0]
+    
+    def create_detailed_description(self, file_paths) -> str:
+        """
+        Creates a detailed description based on the content of the given file.
+        This method processes the file specified by `file_path` through an indexing pipeline
+        and then queries the processed data to generate a detailed description.
+        Args:
+            file_path (str): The path to the file to be processed.
+        Returns:
+            str: A detailed description generated from the file content.
+        """
+        while True:
+            try:
+                results = self.indexing_pipeline.run(
+                    {"converter": {"sources": list(file_paths)}},
+                )
+                break
+            except Exception as e:
+                print(f"Error running pipeline: {e}. Retrying...")
+
+        question = "Was ist der Gegenstand der Beschaffung der Ausschreibung? Beschreibe kurz, welche Leistungen im Rahmen der Ausschreibung interessant sind?"
+        results = self.query_pipeline.run(
+            {
+                "text_embedder": {"text": question},
+                "prompt_builder": {"question": question},
+            },
+            include_outputs_from=["llm", "prompt_builder"], 
+        )
+        return results["llm"]["replies"][0]
+

@@ -14,7 +14,8 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.common.by import By
 import os
 from apify import Actor, Request
-
+from apify.storages import KeyValueStore
+from pathlib import Path
 from .summary_extractor import SummaryExtractor
 from .scraper.scraper import ITAusschreibungScraper, PDFScraper
 from dotenv import load_dotenv
@@ -59,14 +60,16 @@ async def main() -> None:
 
         if Actor.config.headless:
             chrome_options.add_argument('--headless')
-        prefs = {'download.default_directory' : '/Users/christopherroth/code/tender-login-actor/storage/files'}
+        prefs = {'download.default_directory' : '/Users/christopherroth/code/tender-login-actor/storage/key_value_stores/documents'}
         chrome_options.add_experimental_option('prefs', prefs)
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         driver = webdriver.Chrome(options=chrome_options)
         scraper = ITAusschreibungScraper(driver, actor_input.get('email'), actor_input.get('password'))
         summary_extractor = SummaryExtractor(actor_input.get('hf_api_key'))
-    
+
+        example_store: KeyValueStore = await Actor.open_key_value_store(name='documents')
+
         # Process the URLs from the request queue.  
         while request := await request_queue.fetch_next_request():
             
@@ -76,30 +79,47 @@ async def main() -> None:
             try:
                 # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
                 data = await asyncio.to_thread(scraper.scrape, url)
-
                 publication_link = data.get('properties').get('Unterlagen').get('links')[0].get('href')
-                print(f"Publication Link: {publication_link}")
                 publication_content = scraper.download_publication(publication_link )
-                documents_link = data.get('properties').get('Einsicht und Anforderung der Verdingungsunterlagen').get('links')[0].get('href')
-                print(f"Document Link: {documents_link}")
-                
+                documents_link = data.get('properties').get('Einsicht und Anforderung der Verdingungsunterlagen').get('links')[0].get('href')                
                 pdf_scraper = PDFScraper(driver=driver)
                 pdf_scraper.scrape(documents_link)
-                #with open("publication.pdf", "rb") as f:
-                #    publication_content = f.read()
                 with open("publication.pdf", "wb") as f:
                     f.write(publication_content)
                 print(f"Downloaded publication {len(publication_content)} bytes")
-
+                target_path = f'/Users/christopherroth/code/tender-login-actor/storage/key_value_stores/documents/{data.get("id")}'
+                os.makedirs(target_path, exist_ok=True)
+                time.sleep(2)
+                move_files('/Users/christopherroth/code/tender-login-actor/storage/key_value_stores/documents', target_path)
                 summary = summary_extractor.create_summary(publication_content)
                 data['summary'] = summary
-
+                detailed_description = summary_extractor.create_detailed_description(Path(target_path).glob('*.pdf'))
+                data['detailed_description'] = detailed_description
+                print(f"Detailed Description {detailed_description}")
                 # Store the extracted data to the default dataset.
                 await Actor.push_data(data)
             except Exception:
+                
                 Actor.log.exception(f'Cannot extract data from {url}.')
             finally:
                 # Mark the request as handled to ensure it is not processed again.
                 await request_queue.mark_request_as_handled(request)
         driver.quit()
 
+def move_files(base_dir, target_dir):
+    base_path = Path(base_dir)
+    target_path = Path(target_dir)
+
+    for file in base_path.iterdir():  # Iterates over Path objects
+        if file.suffix in {".pdf", ".json"}:
+            try:
+                file.rename(target_path / file.name)
+            except Exception as e:
+                print(f"Error moving {file.name}: {e}")
+
+        elif file.suffix in {".docx", ".doc", ".zip", ".xlsx", ".xls"}:
+            print(f"Removing {file}")
+            try:
+                file.unlink()  # More intuitive than os.remove
+            except Exception as e:
+                print(f"Error removing {file.name}: {e}")
