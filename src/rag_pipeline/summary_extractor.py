@@ -40,6 +40,7 @@ class SummaryExtractor:
             Creates a summary from the provided PDF data.
     """
     def __init__(self, hf_api_key: str, llm_id: str, embedding_model_id:str):
+        self.document_store = InMemoryDocumentStore()
         self.llm_id = llm_id
         self.embedding_model_id = embedding_model_id
         self.indexing_pipeline, self.query_pipeline = self._setup_pipelines(hf_api_key)
@@ -47,7 +48,7 @@ class SummaryExtractor:
 
     def _setup_pipelines(self, api_key):
         prompt_template = """
-        Write a high-quality answer for the given question using only the provided search results (some of which might be irrelevant).        
+        Write a high-quality answer for the given question using only the provided search results (some of which might be irrelevant). Your answer must be written in german!
         Documents:
         {% for doc in documents %}
             {{ doc.content }}
@@ -55,7 +56,7 @@ class SummaryExtractor:
         Question: {{question}}
         Answer:
         """
-        document_store = InMemoryDocumentStore()
+
         hf_llm = HuggingFaceAPIGenerator(
             api_type="serverless_inference_api",
             api_params={"model": self.llm_id},
@@ -66,7 +67,7 @@ class SummaryExtractor:
         indexing_pipeline.add_component("converter", PyPDFToDocument())
         indexing_pipeline.add_component("cleaner", DocumentCleaner())
         indexing_pipeline.add_component(
-            "splitter", DocumentSplitter(split_by='period', split_length=4)
+            "splitter", DocumentSplitter(split_by='period', split_length=6)
         )
         indexing_pipeline.add_component(
             "document_embedder", HuggingFaceAPIDocumentEmbedder(api_type="serverless_inference_api",
@@ -74,7 +75,7 @@ class SummaryExtractor:
                                               token=Secret.from_token(api_key))
         )
         indexing_pipeline.add_component(
-            "writer", DocumentWriter(document_store=document_store)
+            "writer", DocumentWriter(document_store=self.document_store)
         )
 
         indexing_pipeline.connect("converter", "cleaner")
@@ -89,7 +90,7 @@ class SummaryExtractor:
                                               token=Secret.from_token(api_key))
         )
         query_pipeline.add_component(
-            "retriever", InMemoryEmbeddingRetriever(document_store=document_store)
+            "retriever", InMemoryEmbeddingRetriever(document_store=self.document_store)
         )
         query_pipeline.add_component(
             "ranker", LostInTheMiddleRanker(word_count_threshold=1024)
@@ -105,6 +106,7 @@ class SummaryExtractor:
         query_pipeline.connect("prompt_builder", "llm")
 
         return indexing_pipeline, query_pipeline
+
 
     def create_summary(self, pdf_data: bytes, question: str) -> str:
         """
@@ -139,6 +141,12 @@ class SummaryExtractor:
         Returns:
             str: A detailed description generated from the file content.
         """
+        docs = self.document_store.filter_documents()
+        # extract ids
+        ids = [d.id for d in docs]
+        # send them to delete method
+        self.document_store.delete_documents(ids)
+
         while True:
             try:
                 self.indexing_pipeline.run(
@@ -158,3 +166,4 @@ class SummaryExtractor:
             include_outputs_from=["llm", "prompt_builder"], 
         )
         return results["llm"]["replies"][0]
+

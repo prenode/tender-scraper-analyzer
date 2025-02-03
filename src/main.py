@@ -85,30 +85,36 @@ async def main() -> None:
                 publication_link = data.get('properties').get('Unterlagen').get('links')[0].get('href')
                 publication_content = scraper.download_publication(publication_link )
                 documents_link = data.get('properties').get('Einsicht und Anforderung der Verdingungsunterlagen').get('links')[0].get('href')
+               
                 pdf_scraper = PDFScraper(driver=driver)
-                pdf_scraper.scrape(documents_link)
-                with open("publication.pdf", "wb") as f:
-                    f.write(publication_content)
+                result = pdf_scraper.scrape(documents_link)
+                if result is False: 
+                    Actor.log.exception(f'Cannot extract data from {documents_link}.')
 
-                target_path = Path(f'./storage/key_value_stores/documents/{data.get("id")}').absolute().resolve()
-                print(target_path)
-                os.makedirs(target_path, exist_ok=True)
-                time.sleep(1)
-                move_files(save_path, target_path)
-                summary = summary_extractor.create_summary(publication_content, Prompts.BEKANNTMACHUNG_SUMMARY.value)
-                summary_extractor.init_pipeline(list(Path(target_path).glob('*.pdf')))
-                detailed_description = summary_extractor.answer_question(Prompts.DOCUMENTS_DESCRIPTION.value)
-                requirements = summary_extractor.answer_question(Prompts.REQUIREMENTS_OFFER.value)
-                certifications = summary_extractor.answer_question(Prompts.CERTIFICATIONS.value)
-                data['summary'] = summary
-                data['detailed_description'] = detailed_description
-                data['requirements'] = requirements
-                data['certifications'] = certifications
-                print(f"Detailed Description {detailed_description}")
-                print(f"Requirements {requirements}")
-                print(f"Certifications {certifications}")
-                # Store the extracted data to the default dataset.
-                await Actor.push_data(data)
+                    data['summary'] = f'The document link {documents_link} is not supported yet.'
+                    data['detailed_description'] = f'The document link {documents_link} is not supported yet.'
+                    data['requirements'] = f'The document link {documents_link} is not supported yet.'
+                    data['certifications'] = f'The document link {documents_link} is not supported yet.'
+                else:
+
+                    with open("publication.pdf", "wb") as f:
+                        f.write(publication_content)
+                    target_path = Path(f'./storage/key_value_stores/documents/{data.get("id")}').absolute().resolve()
+                    print(target_path)
+                    os.makedirs(target_path, exist_ok=True)
+                    time.sleep(1)
+                    move_files(save_path, target_path)
+                    summary = summary_extractor.create_summary(publication_content, Prompts.BEKANNTMACHUNG_SUMMARY.value)
+                    summary_extractor.init_pipeline(list(Path(target_path).glob('*.pdf')))
+                    detailed_description = summary_extractor.answer_question(Prompts.DOCUMENTS_DESCRIPTION.value)
+                    requirements = summary_extractor.answer_question(Prompts.REQUIREMENTS_OFFER.value)
+                    certifications = summary_extractor.answer_question(Prompts.CERTIFICATIONS.value)
+                    data['summary'] = summary
+                    data['detailed_description'] = detailed_description
+                    data['requirements'] = requirements
+                    data['certifications'] = certifications
+                    # Store the extracted data to the default dataset.
+                    await Actor.push_data(data)
             except Exception:
                 Actor.log.exception(f'Cannot extract data from {url}.')
             finally:

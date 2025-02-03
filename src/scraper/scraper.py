@@ -18,11 +18,7 @@ class BaseScraper:
     def scrape(self):
         return NotImplementedError("This method must be implemented in a subclass!")
     
-    def login_driver(self):
-        return NotImplementedError("This method must be implemented in a subclass!")
-    
 
-    
 class ITAusschreibungScraper(BaseScraper):
     '''
     ITAusschreibungScraper is a class that extends BaseScraper to scrape tender information from the website 'https://www.it-ausschreibung.de/'.
@@ -51,7 +47,6 @@ class ITAusschreibungScraper(BaseScraper):
         self.driver.get(url)
         header = self.driver.find_element(By.XPATH, "//h1")
         tender_name = header.text.removeprefix('Ausschreibung "').removesuffix('"')
-
         header_2 = self.driver.find_element(By.XPATH, "//h2")
         tender_id = header_2.text.removeprefix("Details zur Ausschreibung ")
 
@@ -222,6 +217,10 @@ class PDFScraper(BaseScraper):
     
     def __init__(self, driver: webdriver.Chrome):
         super().__init__(driver)
+        self.url_whitelist = [
+            "www.it-ausschreibung.de","https://www.vergabe-westfalen.de/",
+
+        ]
 
     def _download_element(self, url):
         """
@@ -238,12 +237,10 @@ class PDFScraper(BaseScraper):
         Returns:
             list: A list of URLs of downloadable files.
         """
-        elements = self.driver.find_elements("xpath", '//*[contains(@title, "herunterladen")]')
-
-        # Print or interact with elements
-        for element in elements:
-            print(element.text)  # or element.get_attribute("href") if they are links
-
+        #element contains title 'herunterladen' or 'Download'
+        elements = self.driver.find_elements("xpath", "//*[(@title and contains(translate(@title, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download')) or (@title and contains(translate(@title, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'herunterladen')) or (self::a or self::button or @role='button' or contains(@class, 'button') or contains(@class, 'btn')) and (contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download') or contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'herunterladen'))]')")
+        if len(elements) == 0:
+            raise Exception("No download elements found on the page.")
         return elements
 
     def scrape(self, url: str):
@@ -254,8 +251,12 @@ class PDFScraper(BaseScraper):
         """
         self.driver.get(url)
         download_links = self._get_download_elements()
-
-        for index, link in enumerate(download_links):
-            # file_extension = link.split('.')[-1]
-            # file_path = f"downloaded_file_{index + 1}.{file_extension}"
-            self._download_element(link)
+        if len(download_links) == 0:
+            return False
+        else: 
+            for index, link in enumerate(download_links):
+                # file_extension = link.split('.')[-1]
+                # file_path = f"downloaded_file_{index + 1}.{file_extension}"
+                self._download_element(link)
+        return True
+        
