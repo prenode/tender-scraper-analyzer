@@ -17,6 +17,8 @@ from haystack.components.embedders import (
     HuggingFaceAPITextEmbedder,
     HuggingFaceAPIDocumentEmbedder,
 )
+from haystack.components.rankers import LostInTheMiddleRanker
+
 from haystack.dataclasses.byte_stream import ByteStream
 
 from pathlib import Path
@@ -37,12 +39,14 @@ class SummaryExtractor:
         create_summary(pdf_data: bytes) -> str:
             Creates a summary from the provided PDF data.
     """
-    def __init__(self, hf_api_key: str):
+    def __init__(self, hf_api_key: str, llm_id: str, embedding_model_id:str):
         self.indexing_pipeline, self.query_pipeline = self._setup_pipelines(hf_api_key)
+        self.llm_id = llm_id
+        self.embedding_model_id = embedding_model_id
 
     def _setup_pipelines(self, api_key):
         prompt_template = """
-        Given these documents, answer the question.
+        Write a high-quality answer for the given question using only the provided search results (some of which might be irrelevant).        
         Documents:
         {% for doc in documents %}
             {{ doc.content }}
@@ -53,7 +57,7 @@ class SummaryExtractor:
         document_store = InMemoryDocumentStore()
         hf_llm = HuggingFaceAPIGenerator(
             api_type="serverless_inference_api",
-            api_params={"model": "mistralai/Mistral-7B-Instruct-v0.3"},
+            api_params={"model": self.llm_id},
             token=Secret.from_token(api_key),
         )
 
@@ -61,11 +65,11 @@ class SummaryExtractor:
         indexing_pipeline.add_component("converter", PyPDFToDocument())
         indexing_pipeline.add_component("cleaner", DocumentCleaner())
         indexing_pipeline.add_component(
-            "splitter", DocumentSplitter(split_by="sentence", split_length=5)
+            "splitter", DocumentSplitter(split_by="sentence", split_length=2)
         )
         indexing_pipeline.add_component(
             "document_embedder", HuggingFaceAPIDocumentEmbedder(api_type="serverless_inference_api",
-                                              api_params={"model": "BAAI/bge-small-en-v1.5"},
+                                              api_params={"model": "intfloat/multilingual-e5-small"},
                                               token=Secret.from_token(api_key))
         )
         indexing_pipeline.add_component(
@@ -80,11 +84,14 @@ class SummaryExtractor:
         query_pipeline = Pipeline()
         query_pipeline.add_component(
             "text_embedder", HuggingFaceAPITextEmbedder(api_type="serverless_inference_api",
-                                              api_params={"model": "BAAI/bge-small-en-v1.5"},
+                                              api_params={"model": "intfloat/multilingual-e5-small"},
                                               token=Secret.from_token(api_key))
         )
         query_pipeline.add_component(
             "retriever", InMemoryEmbeddingRetriever(document_store=document_store)
+        )
+        query_pipeline.add_component(
+            "ranker", LostInTheMiddleRanker(word_count_threshold=1024)
         )
         query_pipeline.add_component(
             "prompt_builder", PromptBuilder(template=prompt_template)
@@ -92,12 +99,13 @@ class SummaryExtractor:
         query_pipeline.add_component("llm", hf_llm)
 
         query_pipeline.connect("text_embedder", "retriever")
-        query_pipeline.connect("retriever", "prompt_builder")
+        query_pipeline.connect("retriever", "ranker")
+        query_pipeline.connect("ranker", "prompt_builder")
         query_pipeline.connect("prompt_builder", "llm")
 
         return indexing_pipeline, query_pipeline
 
-    def create_summary(self, pdf_data: bytes) -> str:
+    def create_summary(self, pdf_data: bytes, question: str) -> str:
         """
         Creates a summary of the given PDF data.
         This method processes the provided PDF data using an indexing pipeline and
@@ -111,7 +119,6 @@ class SummaryExtractor:
             {"converter": {"sources": [ByteStream(data=pdf_data)]}},
         )
 
-        question = "Bitte fasse zusammen: 1. Wie Angebote eingereicht werden dürfen 2. Verfahrensart 3. Die Art und den Umfang der Leistung 4. Die Ausführungsfrist/die Länge des Auftrags 5. Sonstiges"
         results = self.query_pipeline.run(
             {
                 "text_embedder": {"text": question},
@@ -121,7 +128,7 @@ class SummaryExtractor:
         )
         return results["llm"]["replies"][0]
     
-    def create_detailed_description(self, file_paths) -> str:
+    def init_pipeline(self, file_paths) -> str:
         """
         Creates a detailed description based on the content of the given file.
         This method processes the file specified by `file_path` through an indexing pipeline
@@ -133,14 +140,16 @@ class SummaryExtractor:
         """
         while True:
             try:
-                results = self.indexing_pipeline.run(
+                self.indexing_pipeline.run(
                     {"converter": {"sources": list(file_paths)}},
                 )
                 break
             except Exception as e:
+                
                 print(f"Error running pipeline: {e}. Retrying...")
 
-        question = "Was ist der Gegenstand der Beschaffung der Ausschreibung? Beschreibe kurz, welche Leistungen im Rahmen der Ausschreibung interessant sind?"
+    def answer_question(self, question) -> str:
+        
         results = self.query_pipeline.run(
             {
                 "text_embedder": {"text": question},
@@ -149,4 +158,3 @@ class SummaryExtractor:
             include_outputs_from=["llm", "prompt_builder"], 
         )
         return results["llm"]["replies"][0]
-

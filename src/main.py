@@ -16,10 +16,11 @@ import os
 from apify import Actor, Request
 from apify.storages import KeyValueStore
 from pathlib import Path
-from .summary_extractor import SummaryExtractor
+from .rag_pipeline.summary_extractor import SummaryExtractor
 from .scraper.scraper import ITAusschreibungScraper, PDFScraper
 from dotenv import load_dotenv
 import requests
+from .rag_pipeline.prompts import Prompts
 
 # To run this Actor locally, you need to have the Selenium Chromedriver installed.
 # Follow the installation guide at: https://www.selenium.dev/documentation/webdriver/getting_started/install_drivers/
@@ -60,15 +61,13 @@ async def main() -> None:
 
         if Actor.config.headless:
             chrome_options.add_argument('--headless')
-        prefs = {'download.default_directory' : '/Users/christopherroth/code/tender-login-actor/storage/key_value_stores/documents'}
+        prefs = {'download.default_directory' : '../storage/key_value_stores/documents'}
         chrome_options.add_experimental_option('prefs', prefs)
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         driver = webdriver.Chrome(options=chrome_options)
         scraper = ITAusschreibungScraper(driver, actor_input.get('email'), actor_input.get('password'))
-        summary_extractor = SummaryExtractor(actor_input.get('hf_api_key'))
-
-        example_store: KeyValueStore = await Actor.open_key_value_store(name='documents')
+        summary_extractor = SummaryExtractor(actor_input.get('hf_api_key'), "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "intfloat/multilingual-e5-small")
 
         # Process the URLs from the request queue.  
         while request := await request_queue.fetch_next_request():
@@ -86,20 +85,19 @@ async def main() -> None:
                 pdf_scraper.scrape(documents_link)
                 with open("publication.pdf", "wb") as f:
                     f.write(publication_content)
-                print(f"Downloaded publication {len(publication_content)} bytes")
-                target_path = f'/Users/christopherroth/code/tender-login-actor/storage/key_value_stores/documents/{data.get("id")}'
+                target_path = f'../storage/key_value_stores/documents/{data.get("id")}'
                 os.makedirs(target_path, exist_ok=True)
-                time.sleep(2)
-                move_files('/Users/christopherroth/code/tender-login-actor/storage/key_value_stores/documents', target_path)
-                summary = summary_extractor.create_summary(publication_content)
+                time.sleep(1)
+                move_files('./storage/key_value_stores/documents', target_path)
+                summary = summary_extractor.create_summary(publication_content, Prompts.BEKANNTMACHUNG_SUMMARY.value)
                 data['summary'] = summary
-                detailed_description = summary_extractor.create_detailed_description(Path(target_path).glob('*.pdf'))
+                summary_extractor.init_pipeline([Path(target_path).glob('*.pdf')])
+                detailed_description = summary_extractor.create_summary(Prompts.DOCUMENTS_DESCRIPTION.value)
                 data['detailed_description'] = detailed_description
                 print(f"Detailed Description {detailed_description}")
                 # Store the extracted data to the default dataset.
                 await Actor.push_data(data)
             except Exception:
-                
                 Actor.log.exception(f'Cannot extract data from {url}.')
             finally:
                 # Mark the request as handled to ensure it is not processed again.

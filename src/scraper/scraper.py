@@ -207,6 +207,19 @@ class ITAusschreibungScraper(BaseScraper):
 
 
 class PDFScraper(BaseScraper):
+    '''
+    PDFScraper is a class that extends BaseScraper to handle the downloading of PDF files from a webpage using a Selenium WebDriver.
+    Methods:
+        __init__(driver: webdriver.Chrome):
+            Initializes the PDFScraper with a Selenium WebDriver.
+        _download_element(url):
+            Downloads a file from the given URL and prints the file object.
+        _get_download_elements():
+            Retrieves all downloadable file links from the current page and prints their text.
+        scrape(url: str):
+            Scrapes the given URL for downloadable files and attempts to download them.
+    '''
+    
     def __init__(self, driver: webdriver.Chrome):
         super().__init__(driver)
 
