@@ -98,9 +98,15 @@ async def main() -> None:
                 summary = summary_extractor.create_summary(publication_content, Prompts.BEKANNTMACHUNG_SUMMARY.value)
                 summary_extractor.init_pipeline(list(Path(target_path).glob('*.pdf')))
                 detailed_description = summary_extractor.answer_question(Prompts.DOCUMENTS_DESCRIPTION.value)
+                requirements = summary_extractor.answer_question(Prompts.REQUIREMENTS_OFFER.value)
+                certifications = summary_extractor.answer_question(Prompts.CERTIFICATIONS.value)
                 data['summary'] = summary
                 data['detailed_description'] = detailed_description
+                data['requirements'] = requirements
+                data['certifications'] = certifications
                 print(f"Detailed Description {detailed_description}")
+                print(f"Requirements {requirements}")
+                print(f"Certifications {certifications}")
                 # Store the extracted data to the default dataset.
                 await Actor.push_data(data)
             except Exception:

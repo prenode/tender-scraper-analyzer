@@ -66,7 +66,7 @@ class SummaryExtractor:
         indexing_pipeline.add_component("converter", PyPDFToDocument())
         indexing_pipeline.add_component("cleaner", DocumentCleaner())
         indexing_pipeline.add_component(
-            "splitter", DocumentSplitter(split_by="sentence", split_length=2)
+            "splitter", DocumentSplitter(split_by='period', split_length=4)
         )
         indexing_pipeline.add_component(
             "document_embedder", HuggingFaceAPIDocumentEmbedder(api_type="serverless_inference_api",
@@ -139,16 +139,14 @@ class SummaryExtractor:
         Returns:
             str: A detailed description generated from the file content.
         """
-        self.indexing_pipeline.run(
+        while True:
+            try:
+                self.indexing_pipeline.run(
                     {"converter": {"sources": list(file_paths)}},
                 )
-        # while True:
-        #     try:
-                
-        #         break
-        #     except Exception as e:
-        #         break
-        #         print(f"Error running pipeline: {e}. Retrying...")
+                break
+            except Exception as e:
+                print(f"Error running pipeline: {e}. Retrying...")
 
     def answer_question(self, question) -> str:
         
