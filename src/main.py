@@ -26,7 +26,7 @@ from .rag_pipeline.prompts import Prompts
 # Follow the installation guide at: https://www.selenium.dev/documentation/webdriver/getting_started/install_drivers/
 # When running on the Apify platform, the Chromedriver is already included in the Actor's Docker image.
 
-
+os.umask(0)
 async def main() -> None:
     """Main entry point for the Apify Actor.
     
@@ -61,11 +61,16 @@ async def main() -> None:
 
         if Actor.config.headless:
             chrome_options.add_argument('--headless')
-        prefs = {'download.default_directory' : '../storage/key_value_stores/documents'}
+        
+        save_path= Path('./storage/key_value_stores/documents').absolute().resolve()
+        print(save_path)
+        prefs = {'download.default_directory' : str(save_path)}
         chrome_options.add_experimental_option('prefs', prefs)
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         driver = webdriver.Chrome(options=chrome_options)
+
+        # Initialize the scraper and summary extractor.
         scraper = ITAusschreibungScraper(driver, actor_input.get('email'), actor_input.get('password'))
         summary_extractor = SummaryExtractor(actor_input.get('hf_api_key'), "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "intfloat/multilingual-e5-small")
 
@@ -74,25 +79,26 @@ async def main() -> None:
             
             url = request.url
             Actor.log.info(f'Scraping {url} ...')
-
             try:
                 # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
                 data = await asyncio.to_thread(scraper.scrape, url)
                 publication_link = data.get('properties').get('Unterlagen').get('links')[0].get('href')
                 publication_content = scraper.download_publication(publication_link )
-                documents_link = data.get('properties').get('Einsicht und Anforderung der Verdingungsunterlagen').get('links')[0].get('href')                
+                documents_link = data.get('properties').get('Einsicht und Anforderung der Verdingungsunterlagen').get('links')[0].get('href')
                 pdf_scraper = PDFScraper(driver=driver)
                 pdf_scraper.scrape(documents_link)
                 with open("publication.pdf", "wb") as f:
                     f.write(publication_content)
-                target_path = f'../storage/key_value_stores/documents/{data.get("id")}'
+
+                target_path = Path(f'./storage/key_value_stores/documents/{data.get("id")}').absolute().resolve()
+                print(target_path)
                 os.makedirs(target_path, exist_ok=True)
                 time.sleep(1)
-                move_files('./storage/key_value_stores/documents', target_path)
+                move_files(save_path, target_path)
                 summary = summary_extractor.create_summary(publication_content, Prompts.BEKANNTMACHUNG_SUMMARY.value)
+                summary_extractor.init_pipeline(list(Path(target_path).glob('*.pdf')))
+                detailed_description = summary_extractor.answer_question(Prompts.DOCUMENTS_DESCRIPTION.value)
                 data['summary'] = summary
-                summary_extractor.init_pipeline([Path(target_path).glob('*.pdf')])
-                detailed_description = summary_extractor.create_summary(Prompts.DOCUMENTS_DESCRIPTION.value)
                 data['detailed_description'] = detailed_description
                 print(f"Detailed Description {detailed_description}")
                 # Store the extracted data to the default dataset.
@@ -105,6 +111,25 @@ async def main() -> None:
         driver.quit()
 
 def move_files(base_dir, target_dir):
+    """
+    Moves files with specific extensions from the base directory to the target directory.
+    Removes files with other specific extensions from the base directory.
+    Args:
+        base_dir (str): The path to the base directory containing the files to be moved or removed.
+        target_dir (str): The path to the target directory where the files should be moved.
+    Supported file extensions for moving:
+        - .pdf
+        - .json
+    Supported file extensions for removing:
+        - .docx
+        - .doc
+        - .zip
+        - .xlsx
+        - .xls
+    Raises:
+        Exception: If there is an error moving or removing a file, an error message is printed.
+    """
+
     base_path = Path(base_dir)
     target_path = Path(target_dir)
 

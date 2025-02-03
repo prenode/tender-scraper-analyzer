@@ -40,9 +40,10 @@ class SummaryExtractor:
             Creates a summary from the provided PDF data.
     """
     def __init__(self, hf_api_key: str, llm_id: str, embedding_model_id:str):
-        self.indexing_pipeline, self.query_pipeline = self._setup_pipelines(hf_api_key)
         self.llm_id = llm_id
         self.embedding_model_id = embedding_model_id
+        self.indexing_pipeline, self.query_pipeline = self._setup_pipelines(hf_api_key)
+       
 
     def _setup_pipelines(self, api_key):
         prompt_template = """
@@ -69,7 +70,7 @@ class SummaryExtractor:
         )
         indexing_pipeline.add_component(
             "document_embedder", HuggingFaceAPIDocumentEmbedder(api_type="serverless_inference_api",
-                                              api_params={"model": "intfloat/multilingual-e5-small"},
+                                              api_params={"model": self.embedding_model_id},
                                               token=Secret.from_token(api_key))
         )
         indexing_pipeline.add_component(
@@ -84,7 +85,7 @@ class SummaryExtractor:
         query_pipeline = Pipeline()
         query_pipeline.add_component(
             "text_embedder", HuggingFaceAPITextEmbedder(api_type="serverless_inference_api",
-                                              api_params={"model": "intfloat/multilingual-e5-small"},
+                                              api_params={"model": self.embedding_model_id},
                                               token=Secret.from_token(api_key))
         )
         query_pipeline.add_component(
@@ -138,15 +139,16 @@ class SummaryExtractor:
         Returns:
             str: A detailed description generated from the file content.
         """
-        while True:
-            try:
-                self.indexing_pipeline.run(
+        self.indexing_pipeline.run(
                     {"converter": {"sources": list(file_paths)}},
                 )
-                break
-            except Exception as e:
+        # while True:
+        #     try:
                 
-                print(f"Error running pipeline: {e}. Retrying...")
+        #         break
+        #     except Exception as e:
+        #         break
+        #         print(f"Error running pipeline: {e}. Retrying...")
 
     def answer_question(self, question) -> str:
         
