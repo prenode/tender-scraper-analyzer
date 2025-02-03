@@ -231,9 +231,6 @@ class PDFScraper(BaseScraper):
             file_path (str): The path where the file should be saved.
         """
         file = url.click()
-        print(file)
-        # with open(file_path, 'wb') as file:
-        #     file.write(self.driver.page_source.encode('utf-8'))
 
     def _get_download_elements(self):
         """
