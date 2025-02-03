@@ -217,10 +217,6 @@ class PDFScraper(BaseScraper):
     
     def __init__(self, driver: webdriver.Chrome):
         super().__init__(driver)
-        self.url_whitelist = [
-            "www.it-ausschreibung.de","https://www.vergabe-westfalen.de/",
-
-        ]
 
     def _download_element(self, url):
         """
@@ -259,4 +255,3 @@ class PDFScraper(BaseScraper):
                 # file_path = f"downloaded_file_{index + 1}.{file_extension}"
                 self._download_element(link)
         return True
-        
