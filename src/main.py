@@ -16,17 +16,12 @@ import os
 from apify import Actor, Request
 from apify.storages import KeyValueStore
 from pathlib import Path
-from .rag_pipeline.summary_extractor import SummaryExtractor
+from .rag_pipeline.summary_extractor import RAGPipeline
 from .scraper.scraper import ITAusschreibungScraper, PDFScraper
 from dotenv import load_dotenv
 import requests
 from .rag_pipeline.prompts import Prompts
 
-# To run this Actor locally, you need to have the Selenium Chromedriver installed.
-# Follow the installation guide at: https://www.selenium.dev/documentation/webdriver/getting_started/install_drivers/
-# When running on the Apify platform, the Chromedriver is already included in the Actor's Docker image.
-
-os.umask(0)
 async def main() -> None:
     """Main entry point for the Apify Actor.
     
@@ -72,7 +67,7 @@ async def main() -> None:
 
         # Initialize the scraper and summary extractor.
         scraper = ITAusschreibungScraper(driver, actor_input.get('email'), actor_input.get('password'))
-        summary_extractor = SummaryExtractor(actor_input.get('hf_api_key'), "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "intfloat/multilingual-e5-small")
+        summary_extractor = RAGPipeline(actor_input.get('hf_api_key'), "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "intfloat/multilingual-e5-small")
 
         # Process the URLs from the request queue.  
         while request := await request_queue.fetch_next_request():
@@ -90,13 +85,9 @@ async def main() -> None:
                 result = pdf_scraper.scrape(documents_link)
                 if result is False: 
                     Actor.log.exception(f'Cannot extract data from {documents_link}.')
-
-                    data['summary'] = f'The document link {documents_link} is not supported yet.'
-                    data['detailed_description'] = f'The document link {documents_link} is not supported yet.'
-                    data['requirements'] = f'The document link {documents_link} is not supported yet.'
-                    data['certifications'] = f'The document link {documents_link} is not supported yet.'
+                    for element in ['summary', 'detailed_description', 'requirements', 'certifications']:
+                        data[element] = f'The document link {documents_link} is not supported yet.'
                 else:
-
                     with open("publication.pdf", "wb") as f:
                         f.write(publication_content)
                     target_path = Path(f'./storage/key_value_stores/documents/{data.get("id")}').absolute().resolve()
