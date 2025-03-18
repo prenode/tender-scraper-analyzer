@@ -2,6 +2,9 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import json
 import requests
+import time
+# import document storage
+
 
 def _element_with_text_exists(driver, xpath):
     try:
@@ -23,11 +26,15 @@ class ITAusschreibungScraper(BaseScraper):
     '''
     ITAusschreibungScraper is a class that extends BaseScraper to scrape tender information from the website 'https://www.it-ausschreibung.de/'.
     Attributes:
+        s3_bucket_name (str): Name of the S3 bucket to store downloaded documents
+        s3_document_storage (S3DocumentStorage): Storage client for saving documents to S3
     Methods:
-        __init__(driver: webdriver.Chrome):
-            Initializes the scraper with a Chrome WebDriver instance and logs in using the provided credentials.
+        __init__(driver: webdriver.Chrome, email: str, password: str, s3_bucket_name: str):
+            Initializes the scraper with a Chrome WebDriver instance, logs in using credentials,
+            and sets up S3 storage for documents.
         scrape(url: str) -> dict:
             Scrapes tender information from the given URL and returns it as a dictionary.
+            Downloads and stores any associated documents in S3.
         _is_logged_in() -> bool:
             Checks if the user is logged in to the website by looking for an element containing the text 'Mein Konto'.
         _login(email: str, password: str):
@@ -36,9 +43,12 @@ class ITAusschreibungScraper(BaseScraper):
             Logs in to the web application using the provided email and password, attempts to load cookies to maintain the session, and saves cookies for future use.
         _load_cookies():
             Loads cookies from a JSON file and adds them to the web driver.
-        _save_cookies(driver: webdriver.Chrome):
+        _save_cookies():
+            Saves the current session cookies to a JSON file.
+        download_publication(link: str) -> bytes:
+            Downloads a publication from the given link and stores it in S3.
     '''
-    
+
     def __init__(self, driver: webdriver.Chrome, email: str, password: str):
         super().__init__(driver)
         self.logged_in_driver(email=email, password=password)
@@ -113,10 +123,10 @@ class ITAusschreibungScraper(BaseScraper):
 
         stay_logged_in = self.driver.find_element(by=By.NAME, value="remember")
         stay_logged_in.click()
-
+        time.sleep(5)
         login_button= self.driver.find_element(By.XPATH, "//button[contains(text(), 'Einloggen')]")
         login_button.click()
-
+        print("Logged in")
         self.driver.implicitly_wait(5)
 
     def logged_in_driver(self, email, password):
@@ -137,12 +147,14 @@ class ITAusschreibungScraper(BaseScraper):
         except Exception as e:
             print("Failed to load cookies: ", e)
         
+        
         if not self._is_logged_in():
             print("Not logged in yet. Logging in...")
             self._login(email, password)
             self._save_cookies()
         
         if not self._is_logged_in():
+            self.driver
             raise Exception("Failed to login")
     
     def _load_cookies(self):
@@ -234,7 +246,7 @@ class PDFScraper(BaseScraper):
             list: A list of URLs of downloadable files.
         """
         #element contains title 'herunterladen' or 'Download'
-        elements = self.driver.find_elements("xpath", "//*[(@title and contains(translate(@title, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download')) or (@title and contains(translate(@title, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'herunterladen')) or (self::a or self::button or @role='button' or contains(@class, 'button') or contains(@class, 'btn')) and (contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download') or contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'herunterladen'))]')")
+        elements = self.driver.find_elements("xpath", "//*[ (@title and contains(translate(@title, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download')) or  (@title and contains(translate(@title, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'herunterladen')) or ( (self::a or self::button or @role='button' or contains(@class, 'button') or contains(@class, 'btn')) and  (contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download') or contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'herunterladen') ))]")
         if len(elements) == 0:
             raise Exception("No download elements found on the page.")
         return elements

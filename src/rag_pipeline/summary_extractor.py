@@ -18,14 +18,15 @@ from haystack.components.embedders import (
     HuggingFaceAPIDocumentEmbedder,
 )
 from haystack.components.rankers import LostInTheMiddleRanker
-
+from haystack_integrations.document_stores.chroma import ChromaDocumentStore
+from haystack_integrations.components.retrievers.chroma import ChromaEmbeddingRetriever
 from haystack.dataclasses.byte_stream import ByteStream
 
 from pathlib import Path
 from dotenv import load_dotenv
 import io
 
-class SummaryExtractor:
+class RAGPipeline:
     """
     A class to extract summaries from PDF documents using a pipeline of components.
     Attributes:
@@ -40,7 +41,7 @@ class SummaryExtractor:
             Creates a summary from the provided PDF data.
     """
     def __init__(self, hf_api_key: str, llm_id: str, embedding_model_id:str):
-        self.document_store = InMemoryDocumentStore()
+        self.document_store = ChromaDocumentStore(host="localhost", port="8000")
         self.llm_id = llm_id
         self.embedding_model_id = embedding_model_id
         self.indexing_pipeline, self.query_pipeline = self._setup_pipelines(hf_api_key)
@@ -90,7 +91,7 @@ class SummaryExtractor:
                                               token=Secret.from_token(api_key))
         )
         query_pipeline.add_component(
-            "retriever", InMemoryEmbeddingRetriever(document_store=self.document_store)
+            "retriever", ChromaEmbeddingRetriever(document_store=self.document_store)
         )
         query_pipeline.add_component(
             "ranker", LostInTheMiddleRanker(word_count_threshold=1024)
@@ -131,7 +132,7 @@ class SummaryExtractor:
         )
         return results["llm"]["replies"][0]
     
-    def init_pipeline(self, file_paths) -> str:
+    def init_pipeline(self, file_paths, tender_id) -> str:
         """
         Creates a detailed description based on the content of the given file.
         This method processes the file specified by `file_path` through an indexing pipeline
@@ -141,17 +142,16 @@ class SummaryExtractor:
         Returns:
             str: A detailed description generated from the file content.
         """
-        docs = self.document_store.filter_documents()
-        # extract ids
-        ids = [d.id for d in docs]
-        # send them to delete method
-        self.document_store.delete_documents(ids)
-
+        # convert all files to documents
         while True:
             try:
                 self.indexing_pipeline.run(
-                    {"converter": {"sources": list(file_paths)}},
+                    {
+                        "converter": {"sources": list(file_paths)},
+                        "writer": {"meta": {"id": tender_id}},
+                    },
                 )
+
                 break
             except Exception as e:
                 print(f"Error running pipeline: {e}. Retrying...")
@@ -166,4 +166,4 @@ class SummaryExtractor:
             include_outputs_from=["llm", "prompt_builder"], 
         )
         return results["llm"]["replies"][0]
-
+        
