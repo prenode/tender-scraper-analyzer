@@ -265,7 +265,6 @@ class S3DocumentStorage:
             logger.error(f"Error uploading {file_path} to {self.bucket_name}/{s3_key}: {e}")
             return False
 
-
     @retry_s3_operation(max_retries=3)
     def upload_fileobj(self, file_obj: BinaryIO, s3_key: str, metadata: Optional[Dict[str, str]] = None,
                       content_type: Optional[str] = None, extra_args: Optional[Dict[str, Any]] = None) -> bool:
@@ -372,7 +371,8 @@ class S3DocumentStorage:
         except Exception as e:
             logger.error(f"Error downloading {s3_key} from S3: {e}")
             return False
-            
+
+
     def download_fileobj(self, s3_key: str, file_obj: BinaryIO, callback: Optional[Callable[[int], None]] = None) -> bool:
         """
         Download a file from S3 bucket to a file-like object.
