@@ -18,6 +18,7 @@ import os
 from apify import Actor, Request
 from apify.storages import KeyValueStore
 from pathlib import Path
+from .scraper.scraper_router import ScraperRouter
 # from .rag_pipeline.summary_extractor import RAGPipeline
 # from .rag_pipeline.prompts import Prompts
 
@@ -78,6 +79,10 @@ async def main() -> None:
         # Process the URLs from the request queue.
         while request := await request_queue.fetch_next_request():
             url = request.url
+            scraper = ScraperRouter(
+                driver, actor_input.get("email"), actor_input.get("password")
+            ).get_scraper(url)
+            print(type(scraper))
             Actor.log.info(f"Scraping {url} ...")
             # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
             data = await asyncio.to_thread(scraper.scrape, url)

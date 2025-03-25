@@ -3,7 +3,7 @@ import re
 
 
 sources = {
-    "https://www.it-ausschreibung.de": ITAusschreibungScraper(),
+    "https://www.it-ausschreibung.de": ITAusschreibungScraper,
     "https://www.evergabe.nrw.de": None,
     "https://www.deutsche-evergabe.de": None,
     "https://www.meinauftrag.rib.de": None,
@@ -12,8 +12,10 @@ sources = {
 
 
 class ScraperRouter:
-    def __init__():
-        pass
+    def __init__(self, driver, email, password):
+        self.driver = driver
+        self.email = email
+        self.password = password
 
     def get_scraper(self, url):
         # regex to identify classic top level domain, should be in format: https://www.example.com
@@ -24,6 +26,6 @@ class ScraperRouter:
                 # return BaseScraper if no scraper is available
                 return None
             else:
-                return sources[url]
+                return sources[url](self.driver, self.email, self.password)
         else:
             raise ValueError("Not a valid url!")
