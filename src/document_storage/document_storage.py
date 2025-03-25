@@ -264,6 +264,69 @@ class S3DocumentStorage:
         except Exception as e:
             logger.error(f"Error uploading {file_path} to {self.bucket_name}/{s3_key}: {e}")
             return False
+        
+    def upload_files(
+        self, 
+        file_paths: List[str], 
+        s3_prefix: Optional[str] = None, 
+        metadata: Optional[Dict[str, str]] = None,
+        content_types: Optional[Dict[str, str]] = None,
+        extra_args: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, bool]:
+        """
+        Upload multiple files to S3 bucket with flexible configuration.
+
+        Args:
+            file_paths: List of local file paths to upload
+            s3_prefix: Optional prefix for S3 destination paths 
+            metadata: Optional metadata dictionary to attach to all objects
+            content_types: Optional dictionary mapping file paths to MIME types
+            extra_args: Optional additional S3 arguments to apply to all uploads
+
+        Returns:
+            Dictionary with file paths as keys and boolean upload status as values
+        """
+        upload_results = {}
+        
+        for file_path in file_paths:
+            try:
+                # Determine S3 key
+                filename = os.path.basename(file_path)
+                s3_key = os.path.join(s3_prefix or '', filename) if s3_prefix else filename
+                
+                # Determine content type
+                file_content_type = (
+                    content_types.get(file_path) if content_types else None
+                )
+                
+                # Upload individual file
+                upload_status = self.upload_file(
+                    file_path=file_path, 
+                    s3_key=s3_key, 
+                    metadata=metadata, 
+                    content_type=file_content_type, 
+                    extra_args=extra_args
+                )
+                
+                upload_results[file_path] = upload_status
+            
+            except Exception as e:
+                logger.error(f"Failed to process file {file_path}: {e}")
+                upload_results[file_path] = False
+        
+        # Log summary
+        total_files = len(file_paths)
+        successful_uploads = sum(upload_results.values())
+        failed_uploads = total_files - successful_uploads
+        
+        logger.info(
+            f"Upload Summary: "
+            f"Total Files: {total_files}, "
+            f"Successful: {successful_uploads}, "
+            f"Failed: {failed_uploads}"
+        )
+        
+        return upload_results
 
     @retry_s3_operation(max_retries=3)
     def upload_fileobj(self, file_obj: BinaryIO, s3_key: str, metadata: Optional[Dict[str, str]] = None,

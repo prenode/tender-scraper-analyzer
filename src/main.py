@@ -20,7 +20,7 @@ from pathlib import Path
 # from .rag_pipeline.summary_extractor import RAGPipeline
 # from .rag_pipeline.prompts import Prompts
 
-from .scraper.scraper import ITAusschreibungScraper, PDFScraper
+from .scraper.scraper_it_ausschreibung import ITAusschreibungScraper
 from dotenv import load_dotenv
 import requests
 from .document_storage.document_storage import S3DocumentStorage
@@ -78,45 +78,21 @@ async def main() -> None:
             
             url = request.url
             Actor.log.info(f'Scraping {url} ...')
+            # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
+            data = await asyncio.to_thread(scraper.scrape, url)
+            print(data)
             try:
-                # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
-                data = await asyncio.to_thread(scraper.scrape, url)
-                print(data)
-                publication_link = data.get('properties').get('Unterlagen').get('links')[0].get('href')
-                publication_content = scraper.download_publication(publication_link )
-                documents_link = data.get('properties').get('Einsicht und Anforderung der Verdingungsunterlagen').get('links')[0].get('href')
-               
-                # pdf_scraper = PDFScraper(driver=driver)
-                # result = pdf_scraper.scrape(documents_link)
-                result = True
-                if result is False: 
-                    Actor.log.exception(f'Cannot extract data from {documents_link}.')
-                    for element in ['summary', 'detailed_description', 'requirements', 'certifications']:
-                        data[element] = f'The document link {documents_link} is not supported yet.'
-                else:
-                    with open(f"./storage/key_value_stores/documents/{data.get('id')}/publication.pdf", "wb") as f:
-                        f.write(publication_content)
-                    target_path = Path(f'./storage/key_value_stores/documents/{data.get("id")}').absolute().resolve()
-                    os.makedirs(target_path, exist_ok=True)
-                    move_files(save_path, target_path)
-                    for file in list(Path(target_path).glob("*.pdf")):
-                        storage.upload_file(str(file), data.get("id") + "/publication")
-                    # summary = summary_extractor.create_summary(publication_content, Prompts.BEKANNTMACHUNG_SUMMARY.value)
-                    # summary_extractor.init_pipeline(list(Path(target_path).glob('*.pdf')), 125573)
-                    # detailed_description = summary_extractor.answer_question(Prompts.DOCUMENTS_DESCRIPTION.value)
-                    # requirements = summary_extractor.answer_question(Prompts.REQUIREMENTS_OFFER.value)
-                    # certifications = summary_extractor.answer_question(Prompts.CERTIFICATIONS.value)
-                    # data['summary'] = summary
-                    # data['detailed_description'] = detailed_description
-                    # data['requirements'] = requirements
-                    # data['certifications'] = certifications
-                    # Store the extracted data to the default dataset.
-                    await Actor.push_data(data)
-            except Exception:
-                Actor.log.exception(f'Cannot extract data from {url}.')
-            finally:
-                # Mark the request as handled to ensure it is not processed again.
-                await request_queue.mark_request_as_handled(request)
+                scraper.download_publication()
+            except ValueError as e:
+                Actor.log.exception(e)
+            except Exception as e:
+                Actor.log.exception(e)
+            
+            target_path = Path(f'./storage/key_value_stores/documents/{data.get("id")}').absolute().resolve()
+            move_files(save_path, target_path)
+            storage.upload_files(list(target_path.glob('*.pdf')))
+            await Actor.push_data(data)
+            await request_queue.mark_request_as_handled(request)
         driver.quit()
 
 def move_files(base_dir, target_dir):
@@ -138,10 +114,10 @@ def move_files(base_dir, target_dir):
     Raises:
         Exception: If there is an error moving or removing a file, an error message is printed.
     """
-
+    
     base_path = Path(base_dir)
     target_path = Path(target_dir)
-
+    os.makedirs(target_path, exist_ok=True)
     for file in base_path.iterdir():  # Iterates over Path objects
         if file.suffix in {".pdf", ".json"}:
             try:
