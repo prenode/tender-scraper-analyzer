@@ -3,6 +3,9 @@ from selenium.webdriver.common.by import By
 import json
 import requests
 import time
+from selenium.webdriver.support.wait import WebDriverWait
+from threading import Thread
+from selenium.common.exceptions import TimeoutException
 # import document storage
 
 
@@ -92,7 +95,7 @@ class ITAusschreibungScraper(BaseScraper):
             bool: True if the user is logged in, False otherwise.
         """
 
-        self.driver.get("https://www.it-ausschreibung.de/")
+        self.driver.get("https://www.it-ausschreibung.de/dashboard")
         self.driver.implicitly_wait(2)
         return _element_with_text_exists(self.driver, "//*[contains(text(), 'Mein Konto')]")
     
@@ -106,28 +109,30 @@ class ITAusschreibungScraper(BaseScraper):
         Returns:
             None
         """
+        self.driver.delete_all_cookies()
         self.driver.get('https://www.it-ausschreibung.de/')
         login_button = self.driver.find_element(by=By.LINK_TEXT, value='Einloggen')
         login_button.click()
-        self.driver.implicitly_wait(2)
+        time.sleep(0.05)
 
         email_input = self.driver.find_element(by=By.NAME, value="email")
         for s in email:
             email_input.send_keys(s)
-            self.driver.implicitly_wait(1)
+            time.sleep(0.05)
 
         password_input = self.driver.find_element(by=By.NAME, value="password")
         for s in password:
             password_input.send_keys(s)
-            self.driver.implicitly_wait(1)
+            time.sleep(0.05)
 
         stay_logged_in = self.driver.find_element(by=By.NAME, value="remember")
         stay_logged_in.click()
         time.sleep(5)
-        login_button= self.driver.find_element(By.XPATH, "//button[contains(text(), 'Einloggen')]")
+        login_button = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Einloggen')]")
         login_button.click()
         print("Logged in")
-        self.driver.implicitly_wait(5)
+        wait = WebDriverWait(self.driver, 10)
+        wait.until(lambda driver: _element_with_text_exists(driver, "//*[contains(text(), 'Mein Konto')]"))
 
     def logged_in_driver(self, email, password):
         """

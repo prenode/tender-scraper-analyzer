@@ -17,14 +17,15 @@ import os
 from apify import Actor, Request
 from apify.storages import KeyValueStore
 from pathlib import Path
-from .rag_pipeline.summary_extractor import RAGPipeline
+# from .rag_pipeline.summary_extractor import RAGPipeline
+# from .rag_pipeline.prompts import Prompts
+
 from .scraper.scraper import ITAusschreibungScraper, PDFScraper
 from dotenv import load_dotenv
 import requests
-from .rag_pipeline.prompts import Prompts
 from .document_storage.document_storage import S3DocumentStorage
 
-storage = S3DocumentStorage(bucket_name="itausschreibungen", aws_access_key_id=os.getenv("S3_ACCESS_KEY"), aws_secret_access_key=os.getenv("S3_SECRET_ACCESS_KEY"))
+storage = S3DocumentStorage()
 
 
 async def main() -> None:
@@ -70,7 +71,7 @@ async def main() -> None:
 
         # Initialize the scraper and summary extractor.
         scraper = ITAusschreibungScraper(driver, actor_input.get('email'), actor_input.get('password'))
-        summary_extractor = RAGPipeline(actor_input.get('hf_api_key'), "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "intfloat/multilingual-e5-small")
+       # summary_extractor = RAGPipeline(actor_input.get('hf_api_key'), "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "intfloat/multilingual-e5-small")
 
         # Process the URLs from the request queue.  
         while request := await request_queue.fetch_next_request():
@@ -80,6 +81,7 @@ async def main() -> None:
             try:
                 # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
                 data = await asyncio.to_thread(scraper.scrape, url)
+                print(data)
                 publication_link = data.get('properties').get('Unterlagen').get('links')[0].get('href')
                 publication_content = scraper.download_publication(publication_link )
                 documents_link = data.get('properties').get('Einsicht und Anforderung der Verdingungsunterlagen').get('links')[0].get('href')
@@ -92,13 +94,13 @@ async def main() -> None:
                     for element in ['summary', 'detailed_description', 'requirements', 'certifications']:
                         data[element] = f'The document link {documents_link} is not supported yet.'
                 else:
-                    with open("publication.pdf", "wb") as f:
+                    with open(f"./storage/key_value_stores/documents/{data.get('id')}/publication.pdf", "wb") as f:
                         f.write(publication_content)
-                        storage.upload_file(f'./storage/key_value_stores/documents/{data.get("id")}', f'{data.get("id")}/publication.pdf')
                     target_path = Path(f'./storage/key_value_stores/documents/{data.get("id")}').absolute().resolve()
                     os.makedirs(target_path, exist_ok=True)
-                    time.sleep(1)
                     move_files(save_path, target_path)
+                    for file in list(Path(target_path).glob("*.pdf")):
+                        storage.upload_file(str(file), data.get("id") + "/publication")
                     # summary = summary_extractor.create_summary(publication_content, Prompts.BEKANNTMACHUNG_SUMMARY.value)
                     # summary_extractor.init_pipeline(list(Path(target_path).glob('*.pdf')), 125573)
                     # detailed_description = summary_extractor.answer_question(Prompts.DOCUMENTS_DESCRIPTION.value)
