@@ -3,3 +3,6 @@ run:
 
 list-files:
     uv run python src/list_files_bucket.py
+
+ci:
+    ruff format

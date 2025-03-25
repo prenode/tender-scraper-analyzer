@@ -81,7 +81,6 @@ async def main() -> None:
             Actor.log.info(f"Scraping {url} ...")
             # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
             data = await asyncio.to_thread(scraper.scrape, url)
-            print(data)
             try:
                 scraper.download_publication()
                 storage.upload_file(
@@ -90,8 +89,10 @@ async def main() -> None:
                 )
             except ValueError as e:
                 Actor.log.exception(e)
+                continue
             except Exception as e:
                 Actor.log.exception(e)
+                continue
 
             target_path = (
                 Path(f"./storage/key_value_stores/documents/{data.get('id')}")
