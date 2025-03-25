@@ -1,14 +1,15 @@
 import chromadb
 
 
-
 class DatabaseConnector:
     def __init__(self):
         self.chroma_client = chromadb.PersistentClient()
-    
+
     def add_collection(self, collection_str: str) -> chromadb.Collection:
         # check if collection exists
-        collection = self.chroma_client.get_or_create_collection(name = str(collection_str))
+        collection = self.chroma_client.get_or_create_collection(
+            name=str(collection_str)
+        )
         return collection
 
     def add_document(self, collection_str: str, documents: dict):

@@ -13,7 +13,7 @@ from haystack.components.preprocessors import DocumentSplitter
 from haystack.components.writers import DocumentWriter
 from haystack.components.embedders import (
     SentenceTransformersTextEmbedder,
-    SentenceTransformersDocumentEmbedder, 
+    SentenceTransformersDocumentEmbedder,
     HuggingFaceAPITextEmbedder,
     HuggingFaceAPIDocumentEmbedder,
 )
@@ -25,6 +25,7 @@ from haystack.dataclasses.byte_stream import ByteStream
 from pathlib import Path
 from dotenv import load_dotenv
 import io
+
 
 class RAGPipeline:
     """
@@ -40,12 +41,12 @@ class RAGPipeline:
         create_summary(pdf_data: bytes) -> str:
             Creates a summary from the provided PDF data.
     """
-    def __init__(self, hf_api_key: str, llm_id: str, embedding_model_id:str):
+
+    def __init__(self, hf_api_key: str, llm_id: str, embedding_model_id: str):
         self.document_store = ChromaDocumentStore(host="localhost", port="8000")
         self.llm_id = llm_id
         self.embedding_model_id = embedding_model_id
         self.indexing_pipeline, self.query_pipeline = self._setup_pipelines(hf_api_key)
-       
 
     def _setup_pipelines(self, api_key):
         prompt_template = """
@@ -68,12 +69,15 @@ class RAGPipeline:
         indexing_pipeline.add_component("converter", PyPDFToDocument())
         indexing_pipeline.add_component("cleaner", DocumentCleaner())
         indexing_pipeline.add_component(
-            "splitter", DocumentSplitter(split_by='period', split_length=6)
+            "splitter", DocumentSplitter(split_by="period", split_length=6)
         )
         indexing_pipeline.add_component(
-            "document_embedder", HuggingFaceAPIDocumentEmbedder(api_type="serverless_inference_api",
-                                              api_params={"model": self.embedding_model_id},
-                                              token=Secret.from_token(api_key))
+            "document_embedder",
+            HuggingFaceAPIDocumentEmbedder(
+                api_type="serverless_inference_api",
+                api_params={"model": self.embedding_model_id},
+                token=Secret.from_token(api_key),
+            ),
         )
         indexing_pipeline.add_component(
             "writer", DocumentWriter(document_store=self.document_store)
@@ -86,9 +90,12 @@ class RAGPipeline:
 
         query_pipeline = Pipeline()
         query_pipeline.add_component(
-            "text_embedder", HuggingFaceAPITextEmbedder(api_type="serverless_inference_api",
-                                              api_params={"model": self.embedding_model_id},
-                                              token=Secret.from_token(api_key))
+            "text_embedder",
+            HuggingFaceAPITextEmbedder(
+                api_type="serverless_inference_api",
+                api_params={"model": self.embedding_model_id},
+                token=Secret.from_token(api_key),
+            ),
         )
         query_pipeline.add_component(
             "retriever", ChromaEmbeddingRetriever(document_store=self.document_store)
@@ -107,7 +114,6 @@ class RAGPipeline:
         query_pipeline.connect("prompt_builder", "llm")
 
         return indexing_pipeline, query_pipeline
-
 
     def create_summary(self, pdf_data: bytes, question: str) -> str:
         """
@@ -128,10 +134,10 @@ class RAGPipeline:
                 "text_embedder": {"text": question},
                 "prompt_builder": {"question": question},
             },
-            include_outputs_from=["llm", "prompt_builder"], 
+            include_outputs_from=["llm", "prompt_builder"],
         )
         return results["llm"]["replies"][0]
-    
+
     def init_pipeline(self, file_paths, tender_id) -> str:
         """
         Creates a detailed description based on the content of the given file.
@@ -157,13 +163,11 @@ class RAGPipeline:
                 print(f"Error running pipeline: {e}. Retrying...")
 
     def answer_question(self, question) -> str:
-        
         results = self.query_pipeline.run(
             {
                 "text_embedder": {"text": question},
                 "prompt_builder": {"question": question},
             },
-            include_outputs_from=["llm", "prompt_builder"], 
+            include_outputs_from=["llm", "prompt_builder"],
         )
         return results["llm"]["replies"][0]
-        
