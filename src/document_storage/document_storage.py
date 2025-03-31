@@ -15,6 +15,8 @@ import math
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 from dotenv import load_dotenv
+import json
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -607,3 +609,32 @@ class S3DocumentStorage:
             return True
         except ClientError:
             return False
+
+    def get_bucket_info(self):
+        """
+        Get metadata JSON on top level of bucket.
+        """
+        # check if metadata file exists,
+        # if not, create it
+        metadata_file = "bucket_metadata.json"
+        if not self.file_exists(metadata_file):
+            # generate empty json 
+            metadata = {"bucket":"" + self.bucket_name, "updated_at": time.time(),
+                        "tender_id" :[]}
+            # upload empty metadata file
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f)
+            # upload file to s3
+            # create metadata file
+            self.upload_file(
+                file_path=metadata_file,
+                s3_key=metadata_file,
+                content_type="application/json",
+            )
+            return metadata
+        else:
+            # download metadata file
+            self.download_file(s3_key=metadata_file, local_path=metadata_file)
+            with open(metadata_file, "r") as f:
+                metadata = json.load(f)
+            return metadata

@@ -12,4 +12,5 @@ class TenderStorage:
             s3_document_storage (S3DocumentStorage): Storage client for saving documents to S3.
         """
         self.s3_document_storage = S3DocumentStorage()
+        bucket_info = self.s3_document_storage.get_bucket_info()
         
