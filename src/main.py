@@ -71,9 +71,9 @@ async def main() -> None:
         driver = webdriver.Chrome(options=chrome_options, service=service)
 
         # Initialize the scraper and summary extractor.
-        scraper = ITAusschreibungScraper(
-            driver, actor_input.get("email"), actor_input.get("password")
-        )
+        # scraper = ITAusschreibungScraper(
+        #     driver, actor_input.get("email"), actor_input.get("password")
+        # )
         # summary_extractor = RAGPipeline(actor_input.get('hf_api_key'), "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "intfloat/multilingual-e5-small")
 
         # Process the URLs from the request queue.
@@ -82,7 +82,6 @@ async def main() -> None:
             scraper = ScraperRouter(
                 driver, actor_input.get("email"), actor_input.get("password")
             ).get_scraper(url)
-            print(type(scraper))
             Actor.log.info(f"Scraping {url} ...")
             # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
             data = await asyncio.to_thread(scraper.scrape, url)

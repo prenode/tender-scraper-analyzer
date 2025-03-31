@@ -1,10 +1,11 @@
 from src.scraper.scraper_it_ausschreibung import ITAusschreibungScraper
+from src.scraper.scraper_evergabe import EvergabeScraper
 import re
 
 
 sources = {
     "https://www.it-ausschreibung.de": ITAusschreibungScraper,
-    "https://www.evergabe.nrw.de": None,
+    "https://www.evergabe.nrw.de": EvergabeScraper,
     "https://www.deutsche-evergabe.de": None,
     "https://www.meinauftrag.rib.de": None,
     "https://ausschreibungen.landbw.de": None,

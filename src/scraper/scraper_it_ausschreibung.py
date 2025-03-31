@@ -26,7 +26,7 @@ class BaseScraper:
         return NotImplementedError("This method must be implemented in a subclass!")
 
 
-class ITAusschreibungScraper(BaseScraper):
+class ITAusschreibungScraper():
     """
     ITAusschreibungScraper is a class that extends BaseScraper to scrape tender information from the website 'https://www.it-ausschreibung.de/'.
     Attributes:
