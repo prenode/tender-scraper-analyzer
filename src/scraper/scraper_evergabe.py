@@ -50,7 +50,23 @@ class EvergabeScraper(BaseScraper):
         Returns:
             _type_: _description_
         """
-        pass 
+        
+        download_elements = self._get_download_elements(url)
+        if len(download_elements) == 0:
+            raise Exception("No download elements found on the page.")
+        for element in download_elements:
+            file = self._download_element(element)
+        pass
+    
+    def _download_element(self, url):
+        """
+        Downloads a file from the given URL and saves it to the specified file path.
+        Args:
+            url (str): The URL of the file to download.
+            file_path (str): The path where the file should be saved.
+        """
+        file = url.click()
+        return file
 
     def _get_download_elements(self, url):
         """
@@ -67,6 +83,7 @@ class EvergabeScraper(BaseScraper):
         )
         print(f"Found {len(elements)} download elements.")
         return elements
+
 
 
 
