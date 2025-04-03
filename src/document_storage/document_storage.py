@@ -635,6 +635,29 @@ class S3DocumentStorage:
         else:
             # download metadata file
             self.download_file(s3_key=metadata_file, local_path=metadata_file)
+
             with open(metadata_file, "r") as f:
                 metadata = json.load(f)
             return metadata
+        
+        
+    def update_metadata(self, metadata: Dict[str, Any]) -> bool:
+        """
+        Update the metadata JSON file in the S3 bucket.
+
+        Args:
+            metadata: Dictionary containing metadata to be updated"
+        """
+        metadata_file = "bucket_metadata.json"
+        try:
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f)
+            self.upload_file(
+                file_path=metadata_file,
+                s3_key=metadata_file,
+                content_type="application/json",
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error updating metadata: {e}")
+            return False

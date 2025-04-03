@@ -27,9 +27,11 @@ from .scraper.scraper_it_ausschreibung import ITAusschreibungScraper
 from dotenv import load_dotenv
 import requests
 from .document_storage.document_storage import S3DocumentStorage
+from .document_storage.tender_storage import TenderStorage
 
 storage = S3DocumentStorage()
 
+storage_manager = TenderStorage()
 
 async def main() -> None:
     """Main entry point for the Apify Actor.
@@ -88,6 +90,7 @@ async def main() -> None:
             data = await asyncio.to_thread(scraper.scrape, url)
             try:
                 scraper.download_publication()
+
                 storage.upload_file(
                     f"./storage/key_value_stores/documents/{data.get('id')}/publication/publication.pdf",
                     f"{data.get('id')}/publication/publication.pdf",
@@ -105,7 +108,11 @@ async def main() -> None:
                 .resolve()
             )
             move_files(save_path, target_path)
-            storage.upload_files(list(target_path.glob("*.pdf")))
+
+            storage_manager.upload_new_tender(
+                    data.get("id"),
+                    target_path,
+                    )            
             await Actor.push_data(data)
             await request_queue.mark_request_as_handled(request)
         driver.quit()
