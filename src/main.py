@@ -19,7 +19,7 @@ from apify import Actor, Request
 from apify.storages import KeyValueStore
 from pathlib import Path
 from .scraper.scraper_router import ScraperRouter
-from utils import move_files
+from .utils import move_files
 # from .rag_pipeline.summary_extractor import RAGPipeline
 # from .rag_pipeline.prompts import Prompts
 
@@ -29,9 +29,6 @@ import requests
 from .document_storage.document_storage import S3DocumentStorage
 from .document_storage.tender_storage import TenderStorage
 
-storage = S3DocumentStorage()
-
-storage_manager = TenderStorage()
 
 async def main() -> None:
     """Main entry point for the Apify Actor.
@@ -41,9 +38,19 @@ async def main() -> None:
     the field of web scraping significantly.
     """
     async with Actor:
+
         # Retrieve the Actor input, and use default values if not provided.
         actor_input = await Actor.get_input() or {}
         start_urls = actor_input.get("start_urls")
+        storage = S3DocumentStorage(
+            bucket_name=actor_input.get("bucket_name"),
+            aws_access_key_id=actor_input.get("aws_access_key_id"),
+            aws_secret_access_key=actor_input.get("aws_secret_access_key"),
+            endpoint_url=actor_input.get("endpoint_url"),
+        )
+
+
+        storage_manager = TenderStorage()
 
         # Exit if no start URLs are provided.
         if not start_urls:

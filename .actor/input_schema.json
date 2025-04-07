@@ -54,28 +54,13 @@
             "editor": "textfield",
             "isSecret": true
         },
-        "s3_service_account":{
-            "title": "S3 Service Account",
-            "type": "string",
-            "description": "A secret, encrypted input field",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "s3_bucket_arn":{
-            "title": "S3 Bucket ARN",
-            "type": "string",
-            "description": "A secret, encrypted input field",
-            "editor": "textfield",
-            "isSecret": true
-        },
         "s3_endpoint_url":{
             "title": "S3 Endpoint URL",
             "type": "string",
             "description": "A secret, encrypted input field",
             "editor": "textfield",
             "isSecret": true
-        },
-
+        }
 
     },
     "required": ["start_urls"]

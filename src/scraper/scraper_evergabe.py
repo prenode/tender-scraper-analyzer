@@ -85,9 +85,6 @@ class EvergabeScraper(BaseScraper):
         return elements
 
 
-
-
-
     def _is_logged_in(self):
         # No login required
         pass
