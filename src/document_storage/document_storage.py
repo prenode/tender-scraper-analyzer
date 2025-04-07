@@ -665,3 +665,16 @@ class S3DocumentStorage:
         except Exception as e:
             logger.error(f"Error updating metadata: {e}")
             return False
+        
+
+    def clear_bucket(self) -> bool:
+        """
+        
+        This method clears the whole bucket. Should only be used for testing purposes.
+        """
+        # list all files in the bucket
+        files = self.list_files()
+        # delete all files
+        for file in files:
+            self.delete_file(file)
+        return True

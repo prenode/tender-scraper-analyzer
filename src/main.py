@@ -49,7 +49,7 @@ async def main() -> None:
             endpoint_url=actor_input.get("s3_endpoint_url"),
         )
 
-
+        storage.clear_bucket()
         storage_manager = TenderStorage(s3_document_storage=storage)
 
         # Exit if no start URLs are provided.
@@ -93,6 +93,7 @@ async def main() -> None:
             storage_manager.upload_new_tender(
                 data.get("id"),
                 [save_path / Path(f"{data.get('id')}/publication/publication.pdf")],
+                True,
             )
 
             # target_path = (
