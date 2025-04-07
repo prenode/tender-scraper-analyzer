@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from src.document_storage import S3DocumentStorage
+from src.document_storage.document_storage import S3DocumentStorage
 
 
 class TenderStorage:
@@ -42,6 +42,17 @@ class TenderStorage:
                Retrieves the documents associated with a specific tender ID from S3.
 
         """
-        
+        pass
 
-        
+
+    def add_to_tender(self, tender_id: str, document_paths: List[str]):
+        """
+        Adds documents to an existing tender in S3. The documents are uploaded to the path tender_id/document_name.
+
+        Args:
+            tender_id (str): The ID of the tender.
+            document_paths (List[str]): The local paths to the documents.
+        """
+        # Upload the documents to S3
+        for document_path in document_paths:
+            self.s3_document_storage.upload_file(document_path, f"{tender_id}/documents/{document_path.split('/')[-1]}")

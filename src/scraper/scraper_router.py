@@ -4,7 +4,6 @@ import re
 
 
 sources = {
-    "https://www.it-ausschreibung.de": ITAusschreibungScraper,
     "https://www.evergabe.nrw.de": EvergabeScraper,
     "https://www.deutsche-evergabe.de": None,
     "https://www.meinauftrag.rib.de": None,

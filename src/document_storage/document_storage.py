@@ -648,7 +648,7 @@ class S3DocumentStorage:
         Args:
             metadata: Dictionary containing metadata to be updated"
         """
-        metadata_file = "bucket_metadata.json"
+        metadata_file = "metadata.json"
         try:
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f)

@@ -19,8 +19,7 @@ def test_update_metadata():
     """
     s3_document_storage = S3DocumentStorage()
 
-    tender_storage = TenderStorage(s3_document_storage)
-    tender_storage.update_metadata({"tender_ids": ["test_tender_id"]})
+    s3_document_storage.update_metadata({"tender_ids": ["test_tender_id"]})
     metadata = s3_document_storage.get_bucket_info()
     
-    assert metadata["tender_ids"].contains("test_tender_id"), "Failed to update metadata with new tender ID."
+    assert "test_tender_id" in metadata["tender_ids"], "Failed to update metadata with new tender ID."

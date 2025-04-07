@@ -70,49 +70,33 @@ async def main() -> None:
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         service = Service(service_args=["--verbose"])
-
         driver = webdriver.Chrome(options=chrome_options, service=service)
-
-        # Initialize the scraper and summary extractor.
-        # scraper = ITAusschreibungScraper(
-        #     driver, actor_input.get("email"), actor_input.get("password")
-        # )
-        # summary_extractor = RAGPipeline(actor_input.get('hf_api_key'), "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "intfloat/multilingual-e5-small")
-
         # Process the URLs from the request queue.
         while request := await request_queue.fetch_next_request():
             url = request.url
-            scraper = ScraperRouter(
+            scraper = ITAusschreibungScraper(
                 driver, actor_input.get("email"), actor_input.get("password")
-            ).get_scraper(url)
+            )
             Actor.log.info(f"Scraping {url} ...")
             # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
             data = await asyncio.to_thread(scraper.scrape, url)
-            try:
-                scraper.download_publication()
-
-                storage.upload_file(
-                    f"./storage/key_value_stores/documents/{data.get('id')}/publication/publication.pdf",
-                    f"{data.get('id')}/publication/publication.pdf",
-                )
-            except ValueError as e:
-                Actor.log.exception(e)
-                continue
-            except Exception as e:
-                Actor.log.exception(e)
-                continue
-
-            target_path = (
-                Path(f"./storage/key_value_stores/documents/{data.get('id')}")
-                .absolute()
-                .resolve()
-            )
-            move_files(save_path, target_path)
-
+            
+            scraper.download_publication()
             storage_manager.upload_new_tender(
-                    data.get("id"),
-                    target_path,
-                    )            
+                data.get("id"),
+                f"{data.get('id')}/publication/publication.pdf",
+            )
+
+
+            # target_path = (
+            #     Path(f"./storage/key_value_stores/documents/{data.get('id')}")
+            #     .absolute()
+            #     .resolve()
+            # )
+            # move_files(save_path, target_path)
+            # files = os.listdir(target_path)
+            # storage_manager.add_to_tender(data.get("id"), files)
+
             await Actor.push_data(data)
             await request_queue.mark_request_as_handled(request)
         driver.quit()
