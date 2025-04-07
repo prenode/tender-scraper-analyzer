@@ -29,9 +29,11 @@ class TenderStorage:
             self.s3_document_storage.upload_file(str(document_path), f"{tender_id}/{str(document_path).split('/')[-1]}")
         # Update the metadata JSON file
         metadata = self.s3_document_storage.get_bucket_info()
-        tender_ids = metadata.get("tender_ids", [])
+        tender_ids = metadata.get("tender_ids")
         if tender_id not in tender_ids:
             tender_ids.append(tender_id)
+            print(f"Adding {tender_id} to metadata")
+            print(tender_ids)
             metadata["tender_ids"] = tender_ids
             self.s3_document_storage.update_metadata(metadata)
         return True

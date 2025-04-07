@@ -616,7 +616,7 @@ class S3DocumentStorage:
         """
         # check if metadata file exists,
         # if not, create it
-        metadata_file = "bucket_metadata.json"
+        metadata_file = "metadata.json"
         if not self.file_exists(metadata_file):
             # generate empty json 
             metadata = {"bucket":"" + self.bucket_name, "updated_at": time.time(),
@@ -634,10 +634,12 @@ class S3DocumentStorage:
             return metadata
         else:
             # download metadata file
+            print("download metadata file")
             self.download_file(s3_key=metadata_file, local_path=metadata_file)
-
+            
             with open(metadata_file, "r") as f:
                 metadata = json.load(f)
+                print(f"metadata: {metadata}")
             return metadata
         
         
@@ -652,6 +654,8 @@ class S3DocumentStorage:
         try:
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f)
+            print(f" Uploading new {metadata}")
+            print(metadata)
             self.upload_file(
                 file_path=metadata_file,
                 s3_key=metadata_file,

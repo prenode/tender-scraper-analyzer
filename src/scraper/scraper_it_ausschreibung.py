@@ -129,7 +129,7 @@ class ITAusschreibungScraper():
 
         stay_logged_in = self.driver.find_element(by=By.NAME, value="remember")
         stay_logged_in.click()
-        time.sleep(5)
+        time.sleep(1)
         login_button = self.driver.find_element(
             By.XPATH, "//button[contains(text(), 'Einloggen')]"
         )
@@ -220,7 +220,7 @@ class ITAusschreibungScraper():
         if self.data.get("properties").get("Unterlagen").get("links") is None:
             raise ValueError("No publication link found in scrape data")
         link = self.data.get("properties").get("Unterlagen").get("links")[0].get("href")
-
+        print(f"Downloading publication from {link}")
         cookies = self.driver.get_cookies()
         cookies = {
             cookie["name"]: cookie["value"]

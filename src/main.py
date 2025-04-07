@@ -43,10 +43,10 @@ async def main() -> None:
         actor_input = await Actor.get_input() or {}
         start_urls = actor_input.get("start_urls")
         storage = S3DocumentStorage(
-            bucket_name=actor_input.get("bucket_name"),
+            bucket_name=actor_input.get("s3_bucket_name"),
             aws_access_key_id=actor_input.get("aws_access_key_id"),
             aws_secret_access_key=actor_input.get("aws_secret_access_key"),
-            endpoint_url=actor_input.get("endpoint_url"),
+            endpoint_url=actor_input.get("s3_endpoint_url"),
         )
 
 
@@ -89,6 +89,7 @@ async def main() -> None:
             data = await asyncio.to_thread(scraper.scrape, url)
             
             scraper.download_publication()
+
             storage_manager.upload_new_tender(
                 data.get("id"),
                 [save_path / Path(f"{data.get('id')}/publication/publication.pdf")],
