@@ -54,8 +54,9 @@ class ITAusschreibungScraper():
     """
 
     def __init__(self, driver: webdriver.Chrome, email: str, password: str):
-        super().__init__(driver)
+        self.driver = driver
         self.logged_in_driver(email=email, password=password)
+    
 
     def scrape(self, url: str):
         self.driver.get(url)
@@ -63,7 +64,6 @@ class ITAusschreibungScraper():
         tender_name = header.text.removeprefix('Ausschreibung "').removesuffix('"')
         header_2 = self.driver.find_element(By.XPATH, "//h2")
         tender_id = header_2.text.removeprefix("Details zur Ausschreibung ")
-
         tender = {"name": tender_name, "id": tender_id, "properties": {}}
 
         card_body = self.driver.find_element(By.XPATH, "//div[@class='card-body']")

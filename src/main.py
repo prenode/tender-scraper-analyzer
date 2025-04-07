@@ -50,7 +50,7 @@ async def main() -> None:
         )
 
 
-        storage_manager = TenderStorage()
+        storage_manager = TenderStorage(s3_document_storage=storage)
 
         # Exit if no start URLs are provided.
         if not start_urls:
@@ -91,9 +91,8 @@ async def main() -> None:
             scraper.download_publication()
             storage_manager.upload_new_tender(
                 data.get("id"),
-                f"{data.get('id')}/publication/publication.pdf",
+                [save_path / Path(f"{data.get('id')}/publication/publication.pdf")],
             )
-
 
             # target_path = (
             #     Path(f"./storage/key_value_stores/documents/{data.get('id')}")
