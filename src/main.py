@@ -49,7 +49,7 @@ async def main() -> None:
             endpoint_url=actor_input.get("s3_endpoint_url"),
         )
 
-        storage.clear_bucket()
+       # storage.clear_bucket()
         storage_manager = TenderStorage(s3_document_storage=storage)
 
         # Exit if no start URLs are provided.
@@ -87,23 +87,35 @@ async def main() -> None:
             Actor.log.info(f"Scraping {url} ...")
             # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
             data = await asyncio.to_thread(scraper.scrape, url)
-            
-            scraper.download_publication()
-
+            files_url = data.get("properties").get("Einsicht und Anforderung der Verdingungsunterlagen").get("links")[0].get("href")
+            print()
+            try:
+                scraper.download_publication()
+            except Exception as e:
+                Actor.log.error(f"Error downloading publication: {e}")
+                continue
             storage_manager.upload_new_tender(
                 data.get("id"),
                 [save_path / Path(f"{data.get('id')}/publication/publication.pdf")],
                 True,
             )
+            try:
+                detailed_scraper = ScraperRouter(driver, "","").get_scraper(files_url)
+                detailed_scraper.scrape(files_url)
+            except Exception as e:
+                Actor.log.error(f"Error downloading documents: {e}")
+                continue
 
-            # target_path = (
-            #     Path(f"./storage/key_value_stores/documents/{data.get('id')}")
-            #     .absolute()
-            #     .resolve()
-            # )
-            # move_files(save_path, target_path)
-            # files = os.listdir(target_path)
-            # storage_manager.add_to_tender(data.get("id"), files)
+
+            target_path = (
+                Path(f"./storage/key_value_stores/documents/{data.get('id')}")
+                .absolute()
+                .resolve()
+            )
+            move_files(save_path, target_path)
+            files = [os.path.join(target_path, f) for f in os.listdir(target_path)]
+
+            storage_manager.add_to_tender(data.get("id"), files)
 
             await Actor.push_data(data)
             await request_queue.mark_request_as_handled(request)

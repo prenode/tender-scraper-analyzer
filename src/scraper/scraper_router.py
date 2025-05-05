@@ -1,10 +1,13 @@
 from src.scraper.scraper_it_ausschreibung import ITAusschreibungScraper
 from src.scraper.scraper_evergabe import EvergabeScraper
+from src.scraper.scraper_dtvp import DTVPScraper
 import re
+from urllib.parse import urlparse
 
 
 sources = {
     "https://www.evergabe.nrw.de": EvergabeScraper,
+    "https://www.dtvp.de": DTVPScraper,
     "https://www.deutsche-evergabe.de": None,
     "https://www.meinauftrag.rib.de": None,
     "https://ausschreibungen.landbw.de": None,
@@ -18,14 +21,10 @@ class ScraperRouter:
         self.password = password
 
     def get_scraper(self, url):
-        # regex to identify classic top level domain, should be in format: https://www.example.com
-        if re.match(r"https://www\.[a-zA-Z0-9-]+\.[a-z]{2,3}", url):
-            url = re.match(r"https://www\.[a-zA-Z0-9-]+\.[a-z]{2,3}", url).group(0)
-            # check if sources has key with url
-            if sources.get(url) is None:
-                # return BaseScraper if no scraper is available
-                return None
-            else:
-                return sources[url](self.driver, self.email, self.password)
-        else:
-            raise ValueError("Not a valid url!")
+        parsed_url = urlparse(url)
+        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+        scraper_class = sources.get(base_url)
+        if scraper_class is None:
+            return None
+        return scraper_class(self.driver)
