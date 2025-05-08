@@ -15,7 +15,7 @@ class TenderStorage:
         self.bucket_info = self.s3_document_storage.get_bucket_info()
 
 
-    def upload_new_tender(self, tender_id:str, document_paths:List[Path], publication: bool) -> bool:
+    def upload_new_tender(self, tender_id:str, document_paths:List[Path], publication: bool):
         """
         Generates a new tender in the top level metadata json file. Additionally all documents in document_paths are uploaded to S3. THe path is tender_id/document_name.
         Args:
@@ -42,7 +42,6 @@ class TenderStorage:
             self.s3_document_storage.update_metadata(self.bucket_info)
             self.bucket_info = self.s3_document_storage.get_bucket_info()
 
-        return True
     
 
     def get_tender_documents(self, tender_id:str) -> List[str]:
@@ -68,6 +67,5 @@ class TenderStorage:
         for document_path in document_paths:
             self.s3_document_storage.upload_file(str(document_path), f"{tender_id}/documents/{str(document_path).split('/')[-1]}")
         data = self.bucket_info
-        print(data)
-
-        
+        data["tender_id"][tender_id]["documents"] = True
+        self.s3_document_storage.update_metadata(data)
