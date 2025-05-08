@@ -620,7 +620,7 @@ class S3DocumentStorage:
         if not self.file_exists(metadata_file):
             # generate empty json 
             metadata = {"bucket":"" + self.bucket_name, "updated_at": time.time(),
-                        "tender_id" :[]}
+                        "tender_id" :{}}
             # upload empty metadata file
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f)

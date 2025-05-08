@@ -49,7 +49,7 @@ async def main() -> None:
             endpoint_url=actor_input.get("s3_endpoint_url"),
         )
 
-       # storage.clear_bucket()
+        storage.clear_bucket()
         storage_manager = TenderStorage(s3_document_storage=storage)
 
         # Exit if no start URLs are provided.
@@ -105,7 +105,6 @@ async def main() -> None:
             except Exception as e:
                 Actor.log.error(f"Error downloading documents: {e}")
                 continue
-
 
             target_path = (
                 Path(f"./storage/key_value_stores/documents/{data.get('id')}")
