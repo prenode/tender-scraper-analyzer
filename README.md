@@ -75,3 +75,19 @@ To learn more about Apify and Actors, take a look at the following resources:
 - [Apify SDK for Python documentation](https://docs.apify.com/sdk/python)
 - [Apify Platform documentation](https://docs.apify.com/platform)
 - [Join our developer community on Discord](https://discord.com/invite/jyEM2PRvMU)
+
+
+## Environment Variables
+
+```
+PASSWORD= # Password for IT-Ausschreibung
+EMAIL=ausschreibungen@prenode.de
+# S3 credentials
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+# # S3 configuration
+S3_ENDPOINT_URL=
+S3_BUCKET_NAME=
+S3_BUCKET_ARN=
+S3_SERVICE_ACCOUNT=
+```
