@@ -15,7 +15,7 @@ class TenderStorage:
         self.bucket_info = self.s3_document_storage.get_bucket_info()
 
 
-    def upload_new_tender(self, tender_id:str, document_paths:List[Path], publication: bool):
+    def upload_new_tender(self, data:dict, document_paths:List[Path], publication: bool):
         """
         Generates a new tender in the top level metadata json file. Additionally all documents in document_paths are uploaded to S3. THe path is tender_id/document_name.
         Args:
@@ -26,24 +26,22 @@ class TenderStorage:
         """
         # Upload the documents to S3
         for document_path in document_paths:
-            self.s3_document_storage.upload_file(str(document_path), f"{tender_id}/{str(document_path).split('/')[-1]}")
+            self.s3_document_storage.upload_file(str(document_path), f"{data.get('id')}/{str(document_path).split('/')[-1]}")
         # Update the metadata JSON file
         metadata = self.s3_document_storage.get_bucket_info()
         tender_ids =  self.bucket_info.get("tender_id")
 
-        if tender_id not in tender_ids:
+        if data.get("id") not in tender_ids:
             if publication:
-                tender_ids[tender_id] = {"publication": True, "documents": False}
+                tender_ids[data.get('id')] = {"publication": True, "documents": False, "data":data}
+
             else:
-                tender_ids[tender_id] = {"publication": False, "documents": False}
-             
-            print(f"Adding {tender_id} to metadata")
+                tender_ids[data.get('id')] = {"publication": False, "documents": False, "data":data}
             self.bucket_info["tender_id"] = tender_ids
             self.s3_document_storage.update_metadata(self.bucket_info)
             self.bucket_info = self.s3_document_storage.get_bucket_info()
 
     
-
     def get_tender_documents(self, tender_id:str) -> List[str]:
         """
                Retrieves the documents associated with a specific tender ID from S3.

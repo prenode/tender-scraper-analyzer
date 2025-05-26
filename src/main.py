@@ -88,14 +88,13 @@ async def main() -> None:
             # Navigate to the URL using Selenium WebDriver. Use asyncio.to_thread for non-blocking execution.
             data = await asyncio.to_thread(scraper.scrape, url)
             files_url = data.get("properties").get("Einsicht und Anforderung der Verdingungsunterlagen").get("links")[0].get("href")
-            print()
             try:
                 scraper.download_publication()
             except Exception as e:
                 Actor.log.error(f"Error downloading publication: {e}")
                 continue
             storage_manager.upload_new_tender(
-                data.get("id"),
+                data,
                 [save_path / Path(f"{data.get('id')}/publication/publication.pdf")],
                 True,
             )
