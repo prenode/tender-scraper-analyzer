@@ -1,2 +1,8 @@
-new-run:
-    rm -r storage/request_queues/default && rm -r storage/key_value_stores/documents && apify run
+run:
+    uv run apify run --purge
+
+list-files:
+    uv run python src/list_files_bucket.py
+
+ci:
+    ruff format

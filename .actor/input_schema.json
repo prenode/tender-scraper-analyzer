@@ -32,7 +32,36 @@
             "description": "A secret, encrypted input field",
             "editor": "textfield",
             "isSecret": true
+        },
+        "aws_access_key_id":{
+            "title": "AWS Access Key ID",
+            "type": "string",
+            "description": "A secret, encrypted input field",
+            "editor": "textfield",
+            "isSecret": true
+        },
+        "aws_secret_access_key":{
+            "title": "AWS Secret Access Key",
+            "type": "string",
+            "description": "A secret, encrypted input field",
+            "editor": "textfield",
+            "isSecret": true
+        },
+        "s3_bucket_name":{
+            "title": "S3 Bucket Name",
+            "type": "string",
+            "description": "A secret, encrypted input field",
+            "editor": "textfield",
+            "isSecret": true
+        },
+        "s3_endpoint_url":{
+            "title": "S3 Endpoint URL",
+            "type": "string",
+            "description": "A secret, encrypted input field",
+            "editor": "textfield",
+            "isSecret": true
         }
+
     },
     "required": ["start_urls"]
 }

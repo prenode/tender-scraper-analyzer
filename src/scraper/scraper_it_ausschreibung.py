@@ -3,6 +3,10 @@ from selenium.webdriver.common.by import By
 import json
 import requests
 import time
+from selenium.webdriver.support.wait import WebDriverWait
+from threading import Thread
+from selenium.common.exceptions import TimeoutException
+import os
 # import document storage
 
 
@@ -13,17 +17,17 @@ def _element_with_text_exists(driver, xpath):
     except Exception:
         return False
 
-class BaseScraper: 
 
+class BaseScraper:
     def __init__(self, driver: webdriver.Chrome):
         self.driver = driver
 
     def scrape(self):
         return NotImplementedError("This method must be implemented in a subclass!")
-    
 
-class ITAusschreibungScraper(BaseScraper):
-    '''
+
+class ITAusschreibungScraper():
+    """
     ITAusschreibungScraper is a class that extends BaseScraper to scrape tender information from the website 'https://www.it-ausschreibung.de/'.
     Attributes:
         s3_bucket_name (str): Name of the S3 bucket to store downloaded documents
@@ -47,11 +51,12 @@ class ITAusschreibungScraper(BaseScraper):
             Saves the current session cookies to a JSON file.
         download_publication(link: str) -> bytes:
             Downloads a publication from the given link and stores it in S3.
-    '''
+    """
 
     def __init__(self, driver: webdriver.Chrome, email: str, password: str):
-        super().__init__(driver)
+        self.driver = driver
         self.logged_in_driver(email=email, password=password)
+    
 
     def scrape(self, url: str):
         self.driver.get(url)
@@ -59,12 +64,7 @@ class ITAusschreibungScraper(BaseScraper):
         tender_name = header.text.removeprefix('Ausschreibung "').removesuffix('"')
         header_2 = self.driver.find_element(By.XPATH, "//h2")
         tender_id = header_2.text.removeprefix("Details zur Ausschreibung ")
-
-        tender = {
-            "name": tender_name,
-            "id": tender_id,
-            "properties": {}
-        }
+        tender = {"name": tender_name, "id": tender_id, "properties": {}}
 
         card_body = self.driver.find_element(By.XPATH, "//div[@class='card-body']")
         headers = card_body.find_elements(By.XPATH, "//h3")
@@ -75,9 +75,13 @@ class ITAusschreibungScraper(BaseScraper):
             links = sibling.find_elements(By.TAG_NAME, "a")
             tender["properties"][property_name] = {
                 "content": property_content,
-                "links": [{"text": link.text, "href": link.get_attribute("href")} for link in links]
+                "links": [
+                    {"text": link.text, "href": link.get_attribute("href")}
+                    for link in links
+                ],
             }
 
+        self.data = tender
         return tender
 
     def _is_logged_in(self):
@@ -92,10 +96,11 @@ class ITAusschreibungScraper(BaseScraper):
             bool: True if the user is logged in, False otherwise.
         """
 
-        self.driver.get("https://www.it-ausschreibung.de/")
+        self.driver.get("https://www.it-ausschreibung.de/dashboard")
         self.driver.implicitly_wait(2)
-        return _element_with_text_exists(self.driver, "//*[contains(text(), 'Mein Konto')]")
-    
+        return _element_with_text_exists(
+            self.driver, "//*[contains(text(), 'Mein Konto')]"
+        )
 
     def _login(self, email, password):
         """
@@ -106,28 +111,36 @@ class ITAusschreibungScraper(BaseScraper):
         Returns:
             None
         """
-        self.driver.get('https://www.it-ausschreibung.de/')
-        login_button = self.driver.find_element(by=By.LINK_TEXT, value='Einloggen')
+        self.driver.delete_all_cookies()
+        self.driver.get("https://www.it-ausschreibung.de/")
+        login_button = self.driver.find_element(by=By.LINK_TEXT, value="Einloggen")
         login_button.click()
-        self.driver.implicitly_wait(2)
+        time.sleep(0.05)
 
         email_input = self.driver.find_element(by=By.NAME, value="email")
         for s in email:
             email_input.send_keys(s)
-            self.driver.implicitly_wait(1)
+            time.sleep(0.05)
 
         password_input = self.driver.find_element(by=By.NAME, value="password")
         for s in password:
             password_input.send_keys(s)
-            self.driver.implicitly_wait(1)
+            time.sleep(0.05)
 
         stay_logged_in = self.driver.find_element(by=By.NAME, value="remember")
         stay_logged_in.click()
-        time.sleep(5)
-        login_button= self.driver.find_element(By.XPATH, "//button[contains(text(), 'Einloggen')]")
+        time.sleep(1)
+        login_button = self.driver.find_element(
+            By.XPATH, "//button[contains(text(), 'Einloggen')]"
+        )
         login_button.click()
         print("Logged in")
-        self.driver.implicitly_wait(5)
+        wait = WebDriverWait(self.driver, 10)
+        wait.until(
+            lambda driver: _element_with_text_exists(
+                driver, "//*[contains(text(), 'Mein Konto')]"
+            )
+        )
 
     def logged_in_driver(self, email, password):
         """
@@ -141,27 +154,26 @@ class ITAusschreibungScraper(BaseScraper):
             webdriver.Chrome: The Chrome WebDriver instance after logging in.
         Raises:
             Exception: If the login process fails.
-        """   
+        """
         try:
             self._load_cookies()
         except Exception as e:
             print("Failed to load cookies: ", e)
-        
-        
+
         if not self._is_logged_in():
             print("Not logged in yet. Logging in...")
             self._login(email, password)
             self._save_cookies()
-        
+
         if not self._is_logged_in():
             self.driver
             raise Exception("Failed to login")
-    
+
     def _load_cookies(self):
         """
         Load cookies from a JSON file and add them to the web driver.
-        This method navigates to the specified URL, reads cookies from a 
-        'cookies.json' file, adds each cookie to the web driver, refreshes 
+        This method navigates to the specified URL, reads cookies from a
+        'cookies.json' file, adds each cookie to the web driver, refreshes
         the page, and sets an implicit wait time.
         Raises:
             FileNotFoundError: If the 'cookies.json' file does not exist.
@@ -169,12 +181,12 @@ class ITAusschreibungScraper(BaseScraper):
         """
 
         self.driver.get("https://www.it-ausschreibung.de/")
-        with open('cookies.json', 'r') as f:
+        with open("cookies.json", "r") as f:
             cookies = json.load(f)
 
         for cookie in cookies:
             self.driver.add_cookie(cookie)
-        
+
         self.driver.refresh()
         self.driver.implicitly_wait(5)
 
@@ -186,12 +198,12 @@ class ITAusschreibungScraper(BaseScraper):
         Saves:
             A JSON file named 'cookies.json' containing the cookies.
         """
-        
+
         cookies = self.driver.get_cookies()
-        with open('cookies.json', 'w') as f:
+        with open("cookies.json", "w") as f:
             json.dump(cookies, f)
 
-    def download_publication(self, link: str) -> bytes:
+    def download_publication(self) -> bytes:
         """
         Downloads a publication from the given link using the provided Selenium WebDriver.
         Args:
@@ -203,67 +215,32 @@ class ITAusschreibungScraper(BaseScraper):
             Exception: If the downloaded file is not a PDF.
             requests.exceptions.HTTPError: If the HTTP request returned an unsuccessful status code.
         """
-
+        if self.data is None:
+            raise Exception("Scrape data before downloading publication")
+        if self.data.get("properties").get("Unterlagen").get("links") is None:
+            raise ValueError("No publication link found in scrape data")
+        link = self.data.get("properties").get("Unterlagen").get("links")[0].get("href")
+        print(f"Downloading publication from {link}")
         cookies = self.driver.get_cookies()
-        cookies = {cookie["name"]:cookie["value"] for cookie in cookies if "www.it-ausschreibung.de" in cookie["domain"]}
+        cookies = {
+            cookie["name"]: cookie["value"]
+            for cookie in cookies
+            if "www.it-ausschreibung.de" in cookie["domain"]
+        }
         response = requests.get(link, cookies=cookies)
+
         response.raise_for_status()
         if response.headers.get("Content-Type") != "application/pdf":
-            raise Exception(f"File is not a PDF ({response.headers.get('Content-Type')})")
+            raise Exception(
+                f"File is not a PDF ({response.headers.get('Content-Type')})"
+            )
+        os.makedirs(
+            f"./storage/key_value_stores/documents/{self.data.get('id')}/publication",
+            exist_ok=True,
+        )
+        with open(
+            f"./storage/key_value_stores/documents/{self.data.get('id')}/publication/publication.pdf",
+            "wb",
+        ) as f:
+            f.write(response.content)
         return response.content
-
-
-class PDFScraper(BaseScraper):
-    '''
-    PDFScraper is a class that extends BaseScraper to handle the downloading of PDF files from a webpage using a Selenium WebDriver.
-    Methods:
-        __init__(driver: webdriver.Chrome):
-            Initializes the PDFScraper with a Selenium WebDriver.
-        _download_element(url):
-            Downloads a file from the given URL and prints the file object.
-        _get_download_elements():
-            Retrieves all downloadable file links from the current page and prints their text.
-        scrape(url: str):
-            Scrapes the given URL for downloadable files and attempts to download them.
-    '''
-    
-    def __init__(self, driver: webdriver.Chrome):
-        super().__init__(driver)
-
-    def _download_element(self, url):
-        """
-        Downloads a file from the given URL and saves it to the specified file path.
-        Args:
-            url (str): The URL of the file to download.
-            file_path (str): The path where the file should be saved.
-        """
-        file = url.click()
-
-    def _get_download_elements(self):
-        """
-        Retrieves all downloadable file links from the current page.
-        Returns:
-            list: A list of URLs of downloadable files.
-        """
-        #element contains title 'herunterladen' or 'Download'
-        elements = self.driver.find_elements("xpath", "//*[ (@title and contains(translate(@title, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download')) or  (@title and contains(translate(@title, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'herunterladen')) or ( (self::a or self::button or @role='button' or contains(@class, 'button') or contains(@class, 'btn')) and  (contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download') or contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'herunterladen') ))]")
-        if len(elements) == 0:
-            raise Exception("No download elements found on the page.")
-        return elements
-
-    def scrape(self, url: str):
-        """
-        Scrapes the given URL for downloadable files and saves them.
-        Args:
-            url (str): The URL to scrape for downloadable files.
-        """
-        self.driver.get(url)
-        download_links = self._get_download_elements()
-        if len(download_links) == 0:
-            return False
-        else: 
-            for index, link in enumerate(download_links):
-                # file_extension = link.split('.')[-1]
-                # file_path = f"downloaded_file_{index + 1}.{file_extension}"
-                self._download_element(link)
-        return True

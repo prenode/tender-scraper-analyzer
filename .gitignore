@@ -156,3 +156,5 @@ cython_debug/
 
 # Added by Apify CLI
 node_modules
+metadata.json
+cookies.json
