@@ -49,7 +49,6 @@ async def main() -> None:
             endpoint_url=actor_input.get("s3_endpoint_url"),
         )
 
-        storage.clear_bucket()
         storage_manager = TenderStorage(s3_document_storage=storage)
 
         # Exit if no start URLs are provided.
